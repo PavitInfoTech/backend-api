@@ -1,0 +1,427 @@
+{
+    "info": {
+        "name": "Backend API - Postman Collection",
+        "_postman_id": "8f7b22f6-0000-0000-0000-000000000000",
+        "description": "Sample Postman collection for the Backend API. Configure environment variables: baseUrl, apiToken, testUserEmail, testUserPassword, userId, jobId, verificationToken.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Ping - Health Check",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/ping",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["ping"]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Auth - Register",
+            "request": {
+                "method": "POST",
+                "header": [
+                    { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"{{testUserEmail}}\",\n  \"password\": \"{{testUserPassword}}\",\n  \"password_confirmation\": \"{{testUserPassword}}\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/auth/register",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["auth", "register"]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "// On success store token and user ID for later requests",
+                            "if (pm.response.code === 201 || pm.response.code === 200) {",
+                            "    var json = pm.response.json();",
+                            "    if (json.data && json.data.token) { pm.environment.set('apiToken', json.data.token); }",
+                            "    if (json.data && json.data.user && json.data.user.id) { pm.environment.set('userId', json.data.user.id); }",
+                            "}"
+                        ]
+                    }
+                }
+            ],
+            "response": []
+        },
+        {
+            "name": "Auth - Register (invalid)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "{}" },
+                "url": {
+                    "raw": "{{baseUrl}}/auth/register",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["auth", "register"]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Auth - Login",
+            "request": {
+                "method": "POST",
+                "header": [
+                    { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"email\": \"{{testUserEmail}}\",\n  \"password\": \"{{testUserPassword}}\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/auth/login",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["auth", "login"]
+                }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "var json = pm.response.json(); if (json.data && json.data.token) { pm.environment.set('apiToken', json.data.token); pm.environment.set('userId', json.data.user.id || json.data.user?.id); }"
+                        ]
+                    }
+                }
+            ],
+            "response": []
+        },
+        {
+            "name": "Auth - Logout",
+            "request": {
+                "method": "POST",
+                "header": [
+                    { "key": "Accept", "value": "application/json" },
+                    { "key": "Authorization", "value": "Bearer {{apiToken}}" }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/auth/logout",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["auth", "logout"]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Auth - Send Verification Email",
+            "request": {
+                "method": "POST",
+                "header": [
+                    { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{ \"email\": \"{{testUserEmail}}\" }"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/auth/verify/send",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["auth", "verify", "send"]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Auth - Verify Email (by token)",
+            "request": {
+                "method": "GET",
+                "url": {
+                    "raw": "{{baseUrl}}/auth/verify/{{verificationToken}}",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["auth", "verify", "{{verificationToken}}"]
+                },
+                "header": [{ "key": "Accept", "value": "application/json" }]
+            },
+            "response": []
+        },
+        {
+            "name": "Auth - Password Forgot",
+            "request": {
+                "method": "POST",
+                "header": [
+                    { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{ \"email\": \"{{testUserEmail}}\" }"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/auth/password/forgot",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["auth", "password", "forgot"]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Auth - Password Reset",
+            "request": {
+                "method": "POST",
+                "header": [
+                    { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"email\": \"{{testUserEmail}}\",\n  \"token\": \"{{resetToken}}\",\n  \"password\": \"newPassword123\",\n  \"password_confirmation\": \"newPassword123\"\n}"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/auth/password/reset",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["auth", "password", "reset"]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "User - Get Profile",
+            "request": {
+                "method": "GET",
+                "header": [
+                    { "key": "Authorization", "value": "Bearer {{apiToken}}" }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/user",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["user"]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "User - Update Profile",
+            "request": {
+                "method": "PUT",
+                "header": [
+                    { "key": "Content-Type", "value": "application/json" },
+                    { "key": "Authorization", "value": "Bearer {{apiToken}}" }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{ \"name\": \"Updated User\", \"email\": \"{{testUserEmail}}\" }"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/user",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["user"]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "User - Upload Avatar (form-data)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    { "key": "Authorization", "value": "Bearer {{apiToken}}" }
+                ],
+                "body": {
+                    "mode": "formdata",
+                    "formdata": [{ "key": "avatar", "type": "file", "src": "" }]
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/user/avatar",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["user", "avatar"]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Public - Get Public Profile",
+            "request": {
+                "method": "GET",
+                "url": {
+                    "raw": "{{baseUrl}}/users/{{userId}}/public",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["users", "{{userId}}", "public"]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Mail - Contact",
+            "request": {
+                "method": "POST",
+                "header": [
+                    { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{ \"name\": \"Contact Name\", \"email\": \"someone@example.com\", \"message\": \"Hello\" }"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/mail/contact",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["mail", "contact"]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Mail - Newsletter",
+            "request": {
+                "method": "POST",
+                "header": [
+                    { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{ \"email\": \"someone@example.com\" }"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/mail/newsletter",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["mail", "newsletter"]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Mail - Password Reset (post)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{ \"email\": \"someone@example.com\" }"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/mail/password-reset",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["mail", "password-reset"]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "AI - Generate (sync)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    { "key": "Content-Type", "value": "application/json" },
+                    { "key": "Authorization", "value": "Bearer {{apiToken}}" }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{ \"prompt\": \"Give me a short summary of the repo\", \"async\": false }"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/ai/generate",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["ai", "generate"]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "AI - Generate (async)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    { "key": "Content-Type", "value": "application/json" },
+                    { "key": "Authorization", "value": "Bearer {{apiToken}}" }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{ \"prompt\": \"Do some async work\", \"async\": true }"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/ai/generate",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["ai", "generate"]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "AI - Get Job Status",
+            "request": {
+                "method": "GET",
+                "header": [
+                    { "key": "Authorization", "value": "Bearer {{apiToken}}" }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/ai/jobs/{{jobId}}/status",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["ai", "jobs", "{{jobId}}", "status"]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Maps - Create Pin",
+            "request": {
+                "method": "POST",
+                "header": [
+                    { "key": "Content-Type", "value": "application/json" },
+                    { "key": "Authorization", "value": "Bearer {{apiToken}}" }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{ \"lat\": 37.7749, \"lng\": -122.4194, \"label\": \"Home\" }"
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/maps/pin",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["maps", "pin"]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "OAuth - Google Redirect (start)",
+            "request": {
+                "method": "GET",
+                "url": {
+                    "raw": "{{baseUrl}}/auth/google/redirect",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["auth", "google", "redirect"]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "API - Nonexistent Route (error example)",
+            "request": {
+                "method": "GET",
+                "url": {
+                    "raw": "{{baseUrl}}/api/nonexistent-route",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["api", "nonexistent-route"]
+                },
+                "header": [{ "key": "Accept", "value": "application/json" }]
+            },
+            "response": []
+        }
+    ],
+    "event": [],
+    "variable": [
+        { "key": "baseUrl", "value": "http://localhost:8000" },
+        { "key": "apiToken", "value": "" },
+        { "key": "testUserEmail", "value": "tester@example.com" },
+        { "key": "testUserPassword", "value": "password123" },
+        { "key": "userId", "value": "" },
+        { "key": "jobId", "value": "" },
+        { "key": "verificationToken", "value": "" },
+        { "key": "resetToken", "value": "" }
+    ]
+}

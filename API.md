@@ -183,6 +183,94 @@ Notes: run `php artisan storage:link` in deployment to make `storage/app/public`
 ### Ping / health check
 
 -   GET /api/ping — returns a simple JSON response with `{ "status": "ok" }`. If `API_DOMAIN` is set you can use `GET /ping` on your API subdomain (e.g. `https://api.example.com/ping`) to check it is reachable.
+
+### Error response format
+
+When requests fail, the API returns a consistent JSON error structure with an appropriate HTTP status code. The standard fields are:
+
+-   `status` — always `error` for failed responses.
+-   `message` — a short human readable message such as `Unauthenticated`, `Validation failed`, or `Resource not found`.
+-   `errors` — (nullable) an object keyed by field names for validation or structured errors; otherwise `null`.
+-   `code` — the HTTP status code returned (e.g., `401`, `422`, `404`, `500`).
+-   `timestamp` — ISO 8601 timestamp when the response was generated.
+
+Example 401 (Unauthenticated):
+
+```
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json
+
+{
+    "status": "error",
+    "message": "Unauthenticated",
+    "errors": null,
+    "code": 401,
+    "timestamp": "2025-11-28T12:34:56Z"
+}
+```
+
+Example 422 (Validation error):
+
+```
+HTTP/1.1 422 Unprocessable Entity
+Content-Type: application/json
+
+{
+    "status": "error",
+    "message": "Validation failed",
+    "errors": {
+        "email": ["The email field is required."],
+        "password": ["The password must be at least 8 characters."]
+    },
+    "code": 422,
+    "timestamp": "2025-11-28T12:34:56Z"
+}
+```
+
+Example 404 (Not found):
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+    "status": "error",
+    "message": "Resource not found",
+    "errors": null,
+    "code": 404,
+    "timestamp": "2025-11-28T12:34:56Z"
+}
+```
+
+Notes:
+
+-   Internally thrown exceptions return the same standard format. When `APP_DEBUG=true`, additional debug details may be included in the response (`exception`, `trace`) to help troubleshooting; avoid enabling debug in production.
+
+### Success response format
+
+Standard success responses follow a consistent JSON response shape used throughout the API:
+
+-   `status` — always `success` for successful responses.
+-   `message` — brief human readable description (e.g., `OK`, `Registered`, `Logged in`).
+-   `data` — JSON object or array containing the payload for the successful operation.
+-   `code` — HTTP status code (e.g., `200` for OK, `201` for created).
+-   `timestamp` — ISO 8601 timestamp at the time of response.
+
+Example success response (GET /api/ping):
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "status": "success",
+    "message": "OK",
+    "data": {"status": "ok"},
+    "code": 200,
+    "timestamp": "2025-11-28T12:34:56Z"
+}
+```
+
     -   Body: { lat: number, lng: number, label?: string, zoom?: integer, width?: integer, height?: integer }
     -   Action: Returns a URL to a Google Static Maps image with the requested pin.
     -   Response structure: { status: 'success', data: { map_url: 'https://maps.googleapis.com/...' } }

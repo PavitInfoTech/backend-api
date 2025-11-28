@@ -11,6 +11,6 @@ class PingTest extends TestCase
         $response = $this->getJson(route('ping'));
 
         $response->assertStatus(200);
-        $response->assertJson(['status' => 'ok']);
+        $response->assertJson(['status' => 'success', 'data' => ['status' => 'ok']]);
     }
 }

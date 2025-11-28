@@ -26,11 +26,28 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Maps
     Route::post('/maps/pin', [\App\Http\Controllers\Api\MapsController::class, 'createPin']);
+
+    // API fallback — return structured JSON for unmatched API routes
+    Route::fallback(function () {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Route not found',
+            'errors' => null,
+            'code' => 404,
+            'timestamp' => now()->toIso8601String(),
+        ], 404);
+    });
 });
 
 // Health / ping endpoint — simple status check returning JSON
 Route::get('/ping', function () {
-    return response()->json(['status' => 'ok']);
+    return response()->json([
+        'status' => 'success',
+        'message' => 'OK',
+        'data' => ['status' => 'ok'],
+        'code' => 200,
+        'timestamp' => now()->toIso8601String(),
+    ], 200);
 })->name('ping');
 
 // Public profiles

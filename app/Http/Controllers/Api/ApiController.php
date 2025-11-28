@@ -13,6 +13,8 @@ class ApiController extends BaseController
             'status' => 'success',
             'message' => $message,
             'data' => $data,
+            'code' => $status,
+            'timestamp' => now()->toIso8601String(),
         ], $status);
     }
 
@@ -22,6 +24,8 @@ class ApiController extends BaseController
             'status' => 'error',
             'message' => $message,
             'errors' => $errors,
+            'code' => $status,
+            'timestamp' => now()->toIso8601String(),
         ], $status);
     }
 }

@@ -25,6 +25,11 @@ FRONTEND_URL=https://app.example.com
 
 To test locally without a subdomain, keep `API_DOMAIN` blank and use the `/api` prefix as before.
 
+Postman collection:
+
+-   `docs/Postman-Backend-API.postman_collection.json` contains a set of example requests for all API endpoints, using environment variables (baseUrl, apiToken, testUserEmail, testUserPassword, userId, jobId, verificationToken). Import this into Postman and set `baseUrl` appropriately (e.g., `http://localhost:8000` or `https://api.example.com`).
+-   -   `docs/Postman-Backend-API.postman_environment.json` is a sample Postman environment for quick import, which includes default values for `baseUrl` and test user variables.
+
 Security / common caveats:
 
 -   If you are using Laravel Sanctum or cookie-based auth, set `SANCTUM_STATEFUL_DOMAINS` to include your SPA domains (not the API domain) and adjust cookie domain settings as needed.
