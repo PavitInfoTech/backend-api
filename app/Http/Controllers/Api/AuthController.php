@@ -19,7 +19,9 @@ class AuthController extends ApiController
     public function register(Request $request)
     {
         $v = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
+            'username' => 'required|string|max:255|unique:users,username',
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'nullable|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|min:6|confirmed',
         ]);
@@ -29,7 +31,9 @@ class AuthController extends ApiController
         }
 
         $user = User::create([
-            'name' => $request->name,
+            'username' => $request->username,
+            'first_name' => $request->first_name,
+            'last_name' => $request->last_name ?? null,
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
@@ -112,6 +116,37 @@ class AuthController extends ApiController
         }
     }
 
+    // Authenticated social linking
+    public function linkToGoogle(Request $request)
+    {
+        try {
+            return Socialite::driver('google')->redirect();
+        } catch (\Exception $e) {
+            return $this->error('Unable to create Google redirect', 500, ['error' => $e->getMessage()]);
+        }
+    }
+
+    public function handleLinkGoogleCallback(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return $this->error('Unauthenticated', 401);
+        }
+
+        try {
+            $social = Socialite::driver('google')->user();
+        } catch (\Exception $e) {
+            return $this->error('Failed to get user from Google', 400, ['error' => $e->getMessage()]);
+        }
+
+        $user->provider_name = 'google';
+        $user->provider_id = $social->getId();
+        $user->avatar = $social->getAvatar() ?? $user->avatar;
+        $user->save();
+
+        return $this->success(['user' => $user], 'Linked Google account');
+    }
+
     public function redirectToGithub(Request $request)
     {
         try {
@@ -119,6 +154,36 @@ class AuthController extends ApiController
         } catch (\Exception $e) {
             return $this->error('Unable to create GitHub redirect', 500, ['error' => $e->getMessage()]);
         }
+    }
+
+    public function linkToGithub(Request $request)
+    {
+        try {
+            return Socialite::driver('github')->redirect();
+        } catch (\Exception $e) {
+            return $this->error('Unable to create GitHub redirect', 500, ['error' => $e->getMessage()]);
+        }
+    }
+
+    public function handleLinkGithubCallback(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return $this->error('Unauthenticated', 401);
+        }
+
+        try {
+            $social = Socialite::driver('github')->user();
+        } catch (\Exception $e) {
+            return $this->error('Failed to get user from GitHub', 400, ['error' => $e->getMessage()]);
+        }
+
+        $user->provider_name = 'github';
+        $user->provider_id = $social->getId();
+        $user->avatar = $social->getAvatar() ?? $user->avatar;
+        $user->save();
+
+        return $this->success(['user' => $user], 'Linked GitHub account');
     }
 
     public function handleGithubCallback(Request $request)
@@ -142,8 +207,24 @@ class AuthController extends ApiController
         }
 
         if (! $user) {
+            $parts = preg_split('/\s+/', trim($name));
+            $firstName = $parts[0] ?? null;
+            $lastName = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : null;
+
+            $preferredUsername = $email ? explode('@', $email)[0] : Str::slug($name);
+            $base =
+                $preferredUsername ? Str::slug($preferredUsername) : Str::slug($firstName . '-' . ($lastName ?? ''));
+            $username = $base;
+            $i = 0;
+            while (User::where('username', $username)->exists()) {
+                $i++;
+                $username = $base . $i;
+            }
+
             $user = User::create([
-                'name' => $name,
+                'username' => $username,
+                'first_name' => $firstName,
+                'last_name' => $lastName,
                 'email' => $email,
                 'password' => Hash::make(Str::random(24)),
                 'provider_name' => $provider,
@@ -175,6 +256,26 @@ class AuthController extends ApiController
         return redirect($redirectTo)->withCookie($cookie);
     }
 
+    public function unlinkProvider(Request $request)
+    {
+        $request->validate(['provider' => 'required|string']);
+        $user = $request->user();
+        if (! $user) {
+            return $this->error('Unauthenticated', 401);
+        }
+
+        $provider = $request->input('provider');
+        if ($user->provider_name !== $provider) {
+            return $this->error('Provider not linked', 400);
+        }
+
+        $user->provider_name = null;
+        $user->provider_id = null;
+        $user->save();
+
+        return $this->success(null, 'Provider unlinked');
+    }
+
     public function handleGoogleCallback(Request $request)
     {
         try {
@@ -199,8 +300,24 @@ class AuthController extends ApiController
 
         if (! $user) {
             // create user with a random password (not used for OAuth)
+            $parts = preg_split('/\s+/', trim($name));
+            $firstName = $parts[0] ?? null;
+            $lastName = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : null;
+
+            $preferredUsername = $email ? explode('@', $email)[0] : Str::slug($name);
+            $base =
+                $preferredUsername ? Str::slug($preferredUsername) : Str::slug($firstName . '-' . ($lastName ?? ''));
+            $username = $base;
+            $i = 0;
+            while (User::where('username', $username)->exists()) {
+                $i++;
+                $username = $base . $i;
+            }
+
             $user = User::create([
-                'name' => $name,
+                'username' => $username,
+                'first_name' => $firstName,
+                'last_name' => $lastName,
                 'email' => $email,
                 'password' => Hash::make(Str::random(24)),
                 'provider_name' => $provider,
@@ -297,6 +414,31 @@ class AuthController extends ApiController
         $token = $user->createToken('password-reset')->plainTextToken;
 
         return $this->success(['user' => $user, 'token' => $token], 'Password reset successfully');
+    }
+
+    /**
+     * Change password for authenticated user
+     */
+    public function changePassword(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return $this->error('Unauthenticated', 401);
+        }
+
+        $payload = $request->validate([
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        if (! Hash::check($payload['current_password'], $user->password)) {
+            return $this->error('Current password is incorrect', 422);
+        }
+
+        $user->password = Hash::make($payload['password']);
+        $user->save();
+
+        return $this->success(null, 'Password changed successfully');
     }
 
     /**

@@ -31,7 +31,10 @@ These variables were added to `.env.example` and must be configured in your `.en
 
 -   GOOGLE_CLIENT_ID — Google OAuth client ID (Socialite)
 -   GOOGLE_CLIENT_SECRET — Google OAuth secret
--   GOOGLE_REDIRECT — OAuth callback (default: `${APP_URL}/api/auth/google/callback`)
+-   GOOGLE_REDIRECT — OAuth callback (default: `${APP_URL}/auth/google/callback`)
+-   GITHUB_CLIENT_ID -
+-   GITHUB_CLIENT_SECRET -
+-   GITHUB_REDIRECT -
 -   GORQ_API_KEY — API key for Gorq (or your AI provider)
 -   GORQ_BASE_URL — Base URL for Gorq API (default `https://api.gorq.ai`)
 -   GORQ_DEFAULT_MODEL — Optional default model to use
@@ -55,13 +58,57 @@ For a full guide on configuring Google Cloud credentials, Socialite server usage
 ### Authentication
 
 -   POST /api/auth/register (or POST /auth/register if `API_DOMAIN` is set)
+
     -   Request body (application/json):
-        -   name (string, required)
+        -   username (string, required, unique)
+        -   first_name (string, required)
+        -   last_name (string, optional)
         -   email (string, required)
         -   password (string, required)
         -   password_confirmation (string, required)
     -   Success (201):
         -   { status: 'success', message: 'Registered', data: { user: {...}, token: '...'} }
+
+    Example request (register):
+
+    ```json
+    POST /api/auth/register
+    Content-Type: application/json
+
+    {
+        "username": "johndoe",
+        "first_name": "John",
+        "last_name": "Doe",
+        "email": "john@example.com",
+        "password": "secret123",
+        "password_confirmation": "secret123"
+    }
+    ```
+
+    Example response (201):
+
+    ```json
+    {
+        "status": "success",
+        "message": "Registered",
+        "data": {
+            "user": {
+                "id": 123,
+                "username": "johndoe",
+                "first_name": "John",
+                "last_name": "Doe",
+                "email": "john@example.com",
+                "avatar": null,
+                "email_verified_at": null,
+                "created_at": "2025-11-28T12:34:56Z"
+            },
+            "token": "plain-text-sanctum-token"
+        },
+        "code": 201,
+        "timestamp": "2025-11-28T12:34:56Z"
+    }
+    ```
+
     -   Note: This endpoint now issues a Laravel Sanctum personal access token (plain text). Save this token client-side and send it on protected requests with the Authorization header:
 
 ```
@@ -69,6 +116,39 @@ Authorization: Bearer <your-plain-text-token-here>
 ```
 
 -   POST /api/auth/login (or POST /auth/login if `API_DOMAIN` is set)
+    Example request (login):
+
+    ```json
+    POST /api/auth/login
+    Content-Type: application/json
+
+    {
+        "email": "john@example.com",
+        "password": "secret123"
+    }
+    ```
+
+    Example response (200):
+
+    ```json
+    {
+        "status": "success",
+        "message": "Logged in",
+        "data": {
+            "user": {
+                "id": 123,
+                "username": "johndoe",
+                "first_name": "John",
+                "last_name": "Doe",
+                "email": "john@example.com",
+                "avatar": null
+            },
+            "token": "plain-text-sanctum-token"
+        },
+        "code": 200,
+        "timestamp": "2025-11-28T12:35:00Z"
+    }
+    ```
 
     -   Request body: { email, password }
     -   Success (200): { status: 'success', message: 'Logged in', data: { user, token } }
@@ -81,7 +161,7 @@ Authorization: Bearer <your-plain-text-token-here>
 
     -   OAuth callback — handled with Laravel Socialite.
     -   Behavior:
-        -   Socialite reads Google user info (id, name, email, avatar).
+        -   Socialite reads Google user info (id, name, email, avatar). The backend will map provider `name` into `first_name` and `last_name` where possible and generate a `username` using the preferred username or email localpart.
         -   If a user exists with the same `provider_name` + `provider_id`, that user is returned.
         -   Otherwise the backend attempts to find a user by email and attach Google provider data.
         -   If no matching user exists, a new user is created and provider fields (`provider_name`, `provider_id`, `avatar`) are saved.
@@ -138,11 +218,16 @@ Authorization: Bearer <your-plain-text-token-here>
     -   Returns current authenticated user's profile.
 
     -   Body (optional fields):
-        -   `name` (string, optional, max 255)
+        -   `username` (string, optional, max 255, unique)
+        -   `first_name` (string, optional, max 255)
+        -   `last_name` (string, optional, max 255)
         -   `email` (string, optional, valid email address, unique among users)
         -   `avatar` (string, optional, url to avatar image)
+            -   NOTE: When returned in API responses, `avatar` is always normalized to an absolute URL so frontends can safely display it. The API accepts multiple formats stored in the DB (absolute URLs, `/storage/...`, `avatars/...`, or relative paths) and converts them to a fully-qualified URL.
     -   Validation rules:
-        -   `name` => sometimes|string|max:255
+        -   `username` => sometimes|string|max:255|unique:users,username,{user_id}
+        -   `first_name` => sometimes|string|max:255
+        -   `last_name` => sometimes|string|max:255
         -   `email` => sometimes|email|unique:users,email,{user_id}
         -   `avatar` => sometimes|url
     -   Success (200): returns updated user { status: 'success', message: 'Profile updated', data: { user will be returned }}
@@ -150,7 +235,51 @@ Authorization: Bearer <your-plain-text-token-here>
         -   401 Unauthenticated — missing or invalid token
         -   422 Validation failed — invalid_name/email or email already taken
         -   500 Server error — database or other internal error
-    -   Body (optional any): { name, email, avatar }
+    -   Body (optional any): { username, first_name, last_name, email, avatar }
+
+    Example request (GET /user):
+
+    ```http
+    GET /api/user
+    Authorization: Bearer <token>
+    Accept: application/json
+    ```
+
+    Example response (200):
+
+    ```json
+    {
+        "status": "success",
+        "message": "User profile",
+        "data": {
+            "id": 123,
+            "username": "johndoe",
+            "first_name": "John",
+            "last_name": "Doe",
+            "email": "john@example.com",
+            "avatar": "https://cdn.example.com/avatars/123.png",
+            "created_at": "2025-11-28T12:34:56Z"
+        },
+        "code": 200,
+        "timestamp": "2025-11-28T12:35:10Z"
+    }
+    ```
+
+    -   POST /api/auth/password/change (or POST /auth/password/change if `API_DOMAIN` is set)
+
+        -   Body: { current_password, password, password_confirmation }
+        -   Behavior: Authenticated endpoint. Validates the user's current password, and if valid, updates the password to the new one. This does *not* revoke active API tokens by default (frontend should re-login to refresh tokens if desired).
+        -   Success (200): { status: 'success', message: 'Password changed successfully' }
+        -   Errors:
+            - 401 Unauthenticated — missing or invalid token
+            - 422 Validation failed — wrong current password or invalid new password/confirmation
+
+    -   DELETE /api/user (or DELETE /user if `API_DOMAIN` is set)
+
+        -   Behavior: Authenticated endpoint. Deletes the authenticated user's account, associated avatar file stored on the server (if found), and revokes stored API tokens.
+        -   Success (200): { status: 'success', message: 'Account deleted' }
+        -   Errors:
+            - 401 Unauthenticated — missing or invalid token
 
 -   POST /api/user/avatar (or POST /user/avatar if `API_DOMAIN` is set)
 
@@ -158,8 +287,44 @@ Authorization: Bearer <your-plain-text-token-here>
     -   Behavior: authenticated endpoint. Validates and stores the uploaded image under `storage/app/public/avatars/{user_id}/` and returns the public URL. If a previous avatar was stored on the server it will be deleted.
     -   Success (200): { status: 'success', message: 'Avatar uploaded', data: { avatar_url: '<url>' } }
 
+    Example response for avatar upload (200):
+
+    ```json
+    {
+        "status": "success",
+        "message": "Avatar uploaded",
+        "data": {
+            "avatar_url": "https://your-cdn-or-domain/storage/avatars/123/abcdef_1600000000.png"
+        },
+        "code": 200,
+        "timestamp": "2025-11-28T12:40:00Z"
+    }
+    ```
+
 -   GET /api/users/{id}/public (or GET /users/{id}/public if `API_DOMAIN` is set)
-    -   Returns a limited public profile object suitable for other users or public pages: { id, name, avatar, created_at }
+
+    -   Returns a limited public profile object suitable for other users or public pages: { id, username, first_name, last_name, avatar, created_at }
+
+    Example response (public profile):
+
+    ```json
+    {
+        "status": "success",
+        "message": "Public profile",
+        "data": {
+            "id": 123,
+            "username": "johndoe",
+            "first_name": "John",
+            "last_name": "Doe",
+            "avatar": "https://cdn.example.com/avatars/123.png",
+            "created_at": "2025-11-28T12:34:56Z"
+        },
+        "code": 200,
+        "timestamp": "2025-11-28T12:41:00Z"
+    }
+    ```
+
+    -   Note: `avatar` in the public profile is normalized to an absolute URL (see above).
 
 Notes: run `php artisan storage:link` in deployment to make `storage/app/public` available at `/storage` so avatar URLs are reachable by the browser.
 

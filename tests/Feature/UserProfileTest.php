@@ -12,7 +12,7 @@ class UserProfileTest extends TestCase
 
     public function test_update_requires_auth()
     {
-        $response = $this->putJson('/api/user', ['name' => 'New Name']);
+        $response = $this->putJson('/api/user', ['first_name' => 'New', 'last_name' => 'Name']);
 
         $response->assertStatus(401)
             ->assertJsonStructure(['status', 'message', 'errors', 'code', 'timestamp'])
@@ -35,14 +35,14 @@ class UserProfileTest extends TestCase
         // name too long
         $long = str_repeat('x', 300);
         $response = $this->withHeader('Authorization', 'Bearer ' . $token)
-            ->putJson('/api/user', ['name' => $long]);
+            ->putJson('/api/user', ['first_name' => $long]);
 
         $response->assertStatus(422);
     }
 
     public function test_update_success_and_unique_email_constraint()
     {
-        $user = User::factory()->create(['email' => 'user1@example.com', 'name' => 'Old Name']);
+        $user = User::factory()->create(['email' => 'user1@example.com', 'first_name' => 'Old', 'last_name' => 'Name']);
         $other = User::factory()->create(['email' => 'other@example.com']);
         $token = $user->createToken('test-token')->plainTextToken;
 
@@ -54,11 +54,11 @@ class UserProfileTest extends TestCase
 
         // Successful update
         $response = $this->withHeader('Authorization', 'Bearer ' . $token)
-            ->putJson('/api/user', ['name' => 'New Name', 'email' => 'newemail@example.com']);
+            ->putJson('/api/user', ['first_name' => 'New', 'last_name' => 'Name', 'email' => 'newemail@example.com']);
 
         $response->assertStatus(200)
             ->assertJson(['status' => 'success', 'message' => 'Profile updated']);
 
-        $this->assertDatabaseHas('users', ['email' => 'newemail@example.com', 'name' => 'New Name']);
+        $this->assertDatabaseHas('users', ['email' => 'newemail@example.com', 'first_name' => 'New', 'last_name' => 'Name']);
     }
 }

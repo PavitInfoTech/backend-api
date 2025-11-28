@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\URL;
 
 class ProfileController extends ApiController
 {
@@ -13,6 +14,11 @@ class ProfileController extends ApiController
         $user = $request->user();
         if (! $user) {
             return $this->error('Unauthenticated', 401);
+        }
+
+        // Normalize avatar to absolute URL for frontend
+        if (! empty($user->avatar)) {
+            $user->avatar = $this->normalizeAvatarUrl($user->avatar);
         }
 
         return $this->success($user, 'User profile');
@@ -26,7 +32,9 @@ class ProfileController extends ApiController
         }
 
         $validated = $request->validate([
-            'name' => 'sometimes|string|max:255',
+            'username' => 'sometimes|string|max:255|unique:users,username,' . $user->id,
+            'first_name' => 'sometimes|string|max:255',
+            'last_name' => 'sometimes|string|max:255',
             'email' => 'sometimes|email|unique:users,email,' . $user->id,
             'avatar' => 'sometimes|url',
         ]);
@@ -53,6 +61,7 @@ class ProfileController extends ApiController
             return $this->error('No file uploaded', 400);
         }
 
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
         $disk = Storage::disk('public');
         $folder = 'avatars/' . $user->id;
         $filename = Str::random(12) . '_' . time() . '.' . $file->getClientOriginalExtension();
@@ -98,13 +107,87 @@ class ProfileController extends ApiController
         }
 
         // Return a limited public profile
+        $avatar = $user->avatar;
+        if (! empty($avatar)) {
+            $avatar = $this->normalizeAvatarUrl($avatar);
+        }
+
         $data = [
             'id' => $user->id,
-            'name' => $user->name,
-            'avatar' => $user->avatar,
+            'username' => $user->username,
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'avatar' => $avatar,
             'created_at' => $user->created_at,
         ];
 
         return $this->success($data, 'Public profile');
+    }
+
+    public function destroy(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return $this->error('Unauthenticated', 401);
+        }
+
+        // Delete stored avatar if present
+        if ($user->avatar) {
+            /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+            $disk = Storage::disk('public');
+            // try to extract relative path
+            $relative = null;
+            if (str_contains($user->avatar, '/storage/')) {
+                $idx = strpos($user->avatar, '/storage/');
+                if ($idx !== false) {
+                    $relative = ltrim(substr($user->avatar, $idx + strlen('/storage/')), '/');
+                }
+            } elseif (str_contains($user->avatar, 'avatars/')) {
+                $pos = strpos($user->avatar, 'avatars/');
+                if ($pos !== false) {
+                    $relative = substr($user->avatar, $pos);
+                }
+            }
+
+            if ($relative && $disk->exists($relative)) {
+                $disk->delete($relative);
+            }
+        }
+
+        // Delete all tokens
+        if ($user->tokens) {
+            $user->tokens()->delete();
+        }
+
+        $user->delete();
+
+        return $this->success(null, 'Account deleted');
+    }
+
+    protected function normalizeAvatarUrl(?string $avatar): ?string
+    {
+        if (empty($avatar)) {
+            return null;
+        }
+
+        // If it's already an absolute URL, return as is
+        if (Str::startsWith($avatar, ['http://', 'https://'])) {
+            return $avatar;
+        }
+
+        // If it contains '/storage/' anywhere, make it absolute
+        if (Str::contains($avatar, '/storage/')) {
+            $idx = strpos($avatar, '/storage/');
+            $path = substr($avatar, $idx);
+            return URL::to($path);
+        }
+
+        // If it contains 'avatars/' (relative), prefix with /storage/
+        if (Str::contains($avatar, 'avatars/')) {
+            return URL::to('/storage/' . ltrim($avatar, '/'));
+        }
+
+        // Otherwise assume it's relative and prefix with app url
+        return URL::to($avatar);
     }
 }

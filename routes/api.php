@@ -19,6 +19,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [\App\Http\Controllers\Api\ProfileController::class, 'show']);
     Route::put('/user', [\App\Http\Controllers\Api\ProfileController::class, 'update']);
     Route::post('/user/avatar', [\App\Http\Controllers\Api\ProfileController::class, 'uploadAvatar']);
+    Route::delete('/user', [\App\Http\Controllers\Api\ProfileController::class, 'destroy']);
+    // Authenticated password change for logged-in users (requires current password)
+    Route::post('/auth/password/change', [\App\Http\Controllers\Api\AuthController::class, 'changePassword']);
 
     // AI (Gorq)
     Route::post('/ai/generate', [\App\Http\Controllers\Api\AIController::class, 'generate'])->middleware('throttle:ai');
@@ -26,6 +29,15 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Maps
     Route::post('/maps/pin', [\App\Http\Controllers\Api\MapsController::class, 'createPin']);
+
+    // Social linking (authenticated flows) — attach social provider to an existing account
+    Route::get('/auth/link/google/redirect', [\App\Http\Controllers\Api\AuthController::class, 'linkToGoogle']);
+    Route::get('/auth/link/google/callback', [\App\Http\Controllers\Api\AuthController::class, 'handleLinkGoogleCallback']);
+    Route::get('/auth/link/github/redirect', [\App\Http\Controllers\Api\AuthController::class, 'linkToGithub']);
+    Route::get('/auth/link/github/callback', [\App\Http\Controllers\Api\AuthController::class, 'handleLinkGithubCallback']);
+
+    // Unlink a social provider (authenticated)
+    Route::post('/auth/unlink', [\App\Http\Controllers\Api\AuthController::class, 'unlinkProvider']);
 
     // API fallback — return structured JSON for unmatched API routes
     Route::fallback(function () {

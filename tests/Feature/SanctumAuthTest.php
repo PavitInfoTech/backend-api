@@ -13,7 +13,9 @@ class SanctumAuthTest extends TestCase
     public function test_register_creates_token()
     {
         $payload = [
-            'name' => 'Test User',
+            'username' => 'testuser',
+            'first_name' => 'Test',
+            'last_name' => 'User',
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',

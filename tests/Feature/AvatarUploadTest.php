@@ -61,12 +61,14 @@ class AvatarUploadTest extends TestCase
 
     public function test_public_profile_returns_limited_fields()
     {
-        $user = User::factory()->create(['name' => 'Public User', 'avatar' => 'https://example.com/a.png']);
+        $user = User::factory()->create(['first_name' => 'Public', 'last_name' => 'User', 'username' => 'publicuser', 'avatar' => 'https://example.com/a.png']);
 
         $response = $this->getJson('/api/users/' . $user->id . '/public');
 
         $response->assertStatus(200)->assertJson(['status' => 'success']);
-        $this->assertArrayHasKey('name', $response->json('data'));
+        $this->assertArrayHasKey('username', $response->json('data'));
+        $this->assertArrayHasKey('first_name', $response->json('data'));
+        $this->assertArrayHasKey('last_name', $response->json('data'));
         $this->assertArrayHasKey('avatar', $response->json('data'));
     }
 
