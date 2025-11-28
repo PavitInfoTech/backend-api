@@ -40,6 +40,7 @@ These variables were added to `.env.example` and must be configured in your `.en
 -   GORQ_DEFAULT_MODEL — Optional default model to use
 -   GOOGLE_MAPS_API_KEY — Google Maps API key (for static map pins)
 -   FRONTEND_URL — Frontend SPA address for CORS/callbacks
+    -   Note: Set `FRONTEND_URL` without a trailing slash. If your API is on a separate domain (e.g., `api.example.com`) and your SPA is on another domain (e.g., `example.com`), set `CORS_ALLOWED_ORIGINS=https://example.com` or `FRONTEND_URL=https://example.com` and ensure `CORS_SUPPORTS_CREDENTIALS=true` if using cookie-based sessions.
 -   SANCTUM_STATEFUL_DOMAINS — If using Sanctum for SPA auth
 
 The repo already contains mail config examples (MAIL\_\* in `.env.example`) for sending messages.
@@ -152,6 +153,36 @@ Authorization: Bearer <your-plain-text-token-here>
 
     -   Request body: { email, password }
     -   Success (200): { status: 'success', message: 'Logged in', data: { user, token } }
+
+        Password hashing and token revocation
+
+        -   The API accepts either a raw `password` (plaintext) or a `password_hash` value. When a raw `password` is provided, the server will compute the `password_hash` using SHA-256 before validating it. If you provide `password_hash` directly, the server will accept it as the client-side hash.
+        -   For security, the server never stores the client-provided hash as-is. Instead, the server re-hashes the client-side hash using Laravel's `Hash::make` (Argon2 / bcrypt). This ensures the value stored in the DB is slow-hashed and cannot be reversed or used to authenticate without the original client hex string.
+        -   Optionally, the API can be configured to revoke active API tokens (Laravel Sanctum tokens) on a password change/reset using the `REVOKE_TOKENS_ON_PASSWORD_CHANGE=true` env var. By default this is enabled in `.env.example`.
+
+        Recommended client-side snippet (JS) to compute SHA-256 hex:
+
+        ```javascript
+        async function sha256Hex(msg) {
+            const data = new TextEncoder().encode(msg);
+            const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray
+                .map((b) => b.toString(16).padStart(2, "0"))
+                .join("");
+        }
+
+        // Example usage with fetch
+        const clientHash = await sha256Hex("supersecret");
+        const res = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                email: "a@b.com",
+                password_hash: clientHash,
+            }),
+        });
+        ```
 
 -   GET /api/auth/google/redirect (or GET /auth/google/redirect if `API_DOMAIN` is set)
 
