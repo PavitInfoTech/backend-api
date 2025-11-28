@@ -28,7 +28,7 @@
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 
-    # Prevent an infinite loop — do not rewrite requests already targeting /public/
+    # Don't rewrite requests that already target /public/
     RewriteCond %{REQUEST_URI} !^/public/
 
     # Rewrite all other requests to the `public/` folder so Laravel's front
@@ -43,3 +43,13 @@
     RewriteCond %{REQUEST_URI} !^/public/
     RewriteRule ^(app|bootstrap|config|database|resources|storage|tests|vendor|node_modules)/ - [F,L]
 </IfModule>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# If your hosting environment does not allow you to set the document root to public/,
+# this .htaccess rewrites into public/. For better security set the virtual host DocRoot
+# to `.../public` and remove this file or leave it as a safety fallback.

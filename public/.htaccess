@@ -4,22 +4,41 @@
     </IfModule>
 
     RewriteEngine On
+    # If your application is served from a subdirectory, set this accordingly.
+    # RewriteBase /subdir
+    RewriteBase /
 
-    # Handle Authorization Header
+    # Send Authorization header through to PHP so frameworks like Laravel can read it
+    # Use both methods to maximize compatibility across Apache versions
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
 
-    # Handle X-XSRF-Token Header
+    # Handle X-XSRF-Token Header for some proxies
     RewriteCond %{HTTP:x-xsrf-token} .
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
 
-    # Redirect Trailing Slashes If Not A Folder...
+    # Ensure index.php is the default handler
+    DirectoryIndex index.php
+
+    # Redirect trailing slashes if not a folder
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
-    # Send Requests To Front Controller...
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteCond %{REQUEST_FILENAME} !-f
+    # If the file or directory exists, serve it directly
+    RewriteCond %{REQUEST_FILENAME} -d [OR]
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    # Otherwise pass the request to the front controller
     RewriteRule ^ index.php [L]
+
+</IfModule>
+
+<IfModule mod_headers.c>
+    # Recommended security headers (adjust per your needs)
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-XSS-Protection "1; mode=block"
 </IfModule>

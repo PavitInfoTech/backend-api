@@ -12,9 +12,17 @@ return Application::configure(basePath: dirname(__DIR__))
             $health = '/up';
 
             // If API_DOMAIN is present, register API routes on that domain without the `api` prefix
+            // For local development or when `API_PREFIX_FALLBACK=true` is set, also register the
+            // /api prefix so developers can call routes via the /api prefix even when the app
+            // uses a subdomain in production (e.g., `api.example.com` -> `/auth/login`).
             $apiDomain = env('API_DOMAIN');
             if (!empty($apiDomain)) {
                 \Illuminate\Support\Facades\Route::middleware('api')->domain($apiDomain)->group($api);
+
+                // Enable /api prefix fallback when running locally or when explicitly requested
+                if (app()->environment('local') || env('API_PREFIX_FALLBACK', false)) {
+                    \Illuminate\Support\Facades\Route::middleware('api')->prefix('api')->group($api);
+                }
             } else {
                 // Fallback to the default /api prefix for local/dev/testing.
                 \Illuminate\Support\Facades\Route::middleware('api')->prefix('api')->group($api);
@@ -56,7 +64,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         // Handle all API exceptions with consistent JSON format
         $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, $request) {
-            if ($request->expectsJson() || $request->is('api/*') || $request->is('*')) {
+            $apiDomain = env('API_DOMAIN');
+            $isApiRequest = $request->expectsJson() || $request->is('api/*') || ($apiDomain && $request->getHost() === $apiDomain) || $request->is('*');
+            if ($isApiRequest) {
                 return response()->json([
                     'status' => 'error',
                     'message' => $e->getMessage() ?: 'Unauthenticated.',
@@ -68,7 +78,9 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (\Illuminate\Validation\ValidationException $e, $request) {
-            if ($request->expectsJson() || $request->is('api/*')) {
+            $apiDomain = env('API_DOMAIN');
+            $isApiRequest = $request->expectsJson() || $request->is('api/*') || ($apiDomain && $request->getHost() === $apiDomain);
+            if ($isApiRequest) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'The given data was invalid.',
@@ -80,7 +92,9 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (\Illuminate\Auth\Access\AuthorizationException $e, $request) {
-            if ($request->expectsJson() || $request->is('api/*')) {
+            $apiDomain = env('API_DOMAIN');
+            $isApiRequest = $request->expectsJson() || $request->is('api/*') || ($apiDomain && $request->getHost() === $apiDomain);
+            if ($isApiRequest) {
                 return response()->json([
                     'status' => 'error',
                     'message' => $e->getMessage() ?: 'Forbidden.',
@@ -92,7 +106,9 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (\Illuminate\Database\Eloquent\ModelNotFoundException $e, $request) {
-            if ($request->expectsJson() || $request->is('api/*')) {
+            $apiDomain = env('API_DOMAIN');
+            $isApiRequest = $request->expectsJson() || $request->is('api/*') || ($apiDomain && $request->getHost() === $apiDomain);
+            if ($isApiRequest) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Resource not found.',
@@ -104,7 +120,9 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) {
-            if ($request->expectsJson() || $request->is('api/*')) {
+            $apiDomain = env('API_DOMAIN');
+            $isApiRequest = $request->expectsJson() || $request->is('api/*') || ($apiDomain && $request->getHost() === $apiDomain);
+            if ($isApiRequest) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Route not found.',
@@ -116,7 +134,9 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException $e, $request) {
-            if ($request->expectsJson() || $request->is('api/*')) {
+            $apiDomain = env('API_DOMAIN');
+            $isApiRequest = $request->expectsJson() || $request->is('api/*') || ($apiDomain && $request->getHost() === $apiDomain);
+            if ($isApiRequest) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Method not allowed.',
@@ -128,7 +148,9 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, $request) {
-            if ($request->expectsJson() || $request->is('api/*')) {
+            $apiDomain = env('API_DOMAIN');
+            $isApiRequest = $request->expectsJson() || $request->is('api/*') || ($apiDomain && $request->getHost() === $apiDomain);
+            if ($isApiRequest) {
                 return response()->json([
                     'status' => 'error',
                     'message' => $e->getMessage() ?: 'HTTP error',

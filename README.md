@@ -14,6 +14,7 @@
 Deployment:
 
 -   If you plan to host your API at a subdomain like `api.example.com` and want endpoints available at the root path (e.g., `https://api.example.com/users`), set the `API_DOMAIN` environment variable to your API host. When `API_DOMAIN` is set, routes in `routes/api.php` are exposed at the root path for that domain (no `/api` prefix).
+    -   If you set `API_DOMAIN` for production but want to retain the `/api` prefix locally (e.g., you cannot add a host entry for `api.local`), set `API_PREFIX_FALLBACK=true` in your local `.env` to register both the domain and `/api` prefixed routes (safe for local development only).
 -   If `API_DOMAIN` is not set, the repository uses the default `api` prefix (e.g., `https://example.com/api/users`) — this is useful for local development and automated testing.
 
 Example (production `.env`):
