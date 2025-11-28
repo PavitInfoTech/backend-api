@@ -13,33 +13,9 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\PasswordResetMail;
 use App\Mail\EmailVerificationMail;
 use Illuminate\Support\Facades\DB;
-use Laravel\Sanctum\PersonalAccessToken as SanctumPersonalAccessToken;
 
 class AuthController extends ApiController
 {
-    /**
-     * Compute client hash from the request. If the request contains a pre-hashed
-     * password (password_hash) return it directly; otherwise compute the
-     * client-style sha256 hash from the plaintext password.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @param string $passwordKey
-     * @param string $passwordHashKey
-     * @return string|null
-     */
-    protected function clientHashFromRequest(Request $request, string $passwordKey = 'password', string $passwordHashKey = 'password_hash'): ?string
-    {
-        if ($request->filled($passwordHashKey)) {
-            return trim((string) $request->input($passwordHashKey));
-        }
-
-        if ($request->filled($passwordKey)) {
-            return hash('sha256', (string) $request->input($passwordKey));
-        }
-
-        return null;
-    }
-
     public function register(Request $request)
     {
         $v = Validator::make($request->all(), [
@@ -47,24 +23,19 @@ class AuthController extends ApiController
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
             'email' => 'required|email|unique:users,email',
-            // Accept either a frontend-provided pre-hash for password or plaintext password
-            'password_hash' => 'required_without:password|string|confirmed',
-            'password' => 'required_without:password_hash|min:6|confirmed',
+            'password' => 'required|min:6|confirmed',
         ]);
 
         if ($v->fails()) {
             return $this->error('Validation failed', 422, $v->errors()->toArray());
         }
 
-        $clientHash = $this->clientHashFromRequest($request);
-
         $user = User::create([
             'username' => $request->username,
             'first_name' => $request->first_name,
             'last_name' => $request->last_name ?? null,
             'email' => $request->email,
-            // Re-hash the client-provided hash using a server-side slow hash.
-            'password' => Hash::make($clientHash),
+            'password' => Hash::make($request->password),
         ]);
 
         // Create a Sanctum personal access token
@@ -77,8 +48,7 @@ class AuthController extends ApiController
     {
         $v = Validator::make($request->all(), [
             'email' => 'required|email',
-            'password' => 'required_without:password_hash',
-            'password_hash' => 'required_without:password',
+            'password' => 'required',
         ]);
 
         if ($v->fails()) {
@@ -87,15 +57,7 @@ class AuthController extends ApiController
 
         $user = User::where('email', $request->email)->first();
 
-        $clientHash = $this->clientHashFromRequest($request);
-
-        $valid = false;
-        if ($clientHash && $user) {
-            // We store server-side Argon/Bcrypt of the clientHash, so verify by re-hashing check
-            $valid = Hash::check($clientHash, (string) $user->password);
-        }
-
-        if (! $user || ! $valid) {
+        if (! $user || ! Hash::check($request->password, $user->password)) {
             return $this->error('Invalid credentials', 401);
         }
 
@@ -128,7 +90,7 @@ class AuthController extends ApiController
             // Sanctum stores token column as a SHA-256 hash of the plain token
             $hashed = hash('sha256', $cookieToken);
             // Delete any matching personal access token record
-            DB::table('personal_access_tokens')->where('token', $hashed)->delete();
+            \DB::table('personal_access_tokens')->where('token', $hashed)->delete();
         }
 
         // Clear the cookie from the browser. Also return JSON if requested.
@@ -424,9 +386,7 @@ class AuthController extends ApiController
         $payload = $request->validate([
             'email' => 'required|email',
             'token' => 'required|string',
-            // Accept a frontend provided hash, or a raw password for backwards compatibility
-            'password_hash' => 'required_without:password|string|confirmed',
-            'password' => 'required_without:password_hash|min:6|confirmed',
+            'password' => 'required|min:6|confirmed',
         ]);
 
         $row = DB::table('password_reset_tokens')->where('email', $payload['email'])->first();
@@ -445,21 +405,12 @@ class AuthController extends ApiController
             return $this->error('User not found', 404);
         }
 
-        // Determine the client hash (sha256 or provided). Re-hash on server-side with Hash::make.
-        $clientNewHash = $payload['password_hash'] ?? hash('sha256', $payload['password'] ?? '');
-        $user->password = Hash::make($clientNewHash);
+        $user->password = Hash::make($payload['password']);
         $user->save();
 
         DB::table('password_reset_tokens')->where('email', $payload['email'])->delete();
 
         // issue a new token after password reset
-        // Revoke tokens when password is reset
-        $user->tokens()->delete();
-        DB::table('personal_access_tokens')
-            ->where('tokenable_id', $user->id)
-            ->where('tokenable_type', User::class)
-            ->delete();
-
         $token = $user->createToken('password-reset')->plainTextToken;
 
         return $this->success(['user' => $user, 'token' => $token], 'Password reset successfully');
@@ -476,35 +427,17 @@ class AuthController extends ApiController
         }
 
         $payload = $request->validate([
-            'current_password' => 'required_without:current_password_hash|string',
-            'current_password_hash' => 'required_without:current_password|string',
-            'password_hash' => 'required_without:password|string|confirmed',
-            'password' => 'required_without:password_hash|string|min:6|confirmed',
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:6|confirmed',
         ]);
 
-        $currentClientHash = $payload['current_password_hash'] ?? ($payload['current_password'] ? hash('sha256', $payload['current_password']) : null);
-        $currentOk = $currentClientHash ? Hash::check($currentClientHash, (string) $user->password) : false;
-
-        if (! $currentOk) {
+        if (! Hash::check($payload['current_password'], $user->password)) {
             return $this->error('Current password is incorrect', 422);
         }
 
-        $clientNewHash = $payload['password_hash'] ?? hash('sha256', $payload['password'] ?? '');
-        $user->password = Hash::make($clientNewHash);
+        $user->password = Hash::make($payload['password']);
         $user->save();
 
-        // Optionally revoke tokens when password changes
-        if (config('security.revoke_tokens_on_password_change', true)) {
-            $user->tokens()->delete();
-            // Also delete using the Sanctum model directly
-            SanctumPersonalAccessToken::where('tokenable_id', $user->id)
-                ->where('tokenable_type', User::class)
-                ->delete();
-            DB::table('personal_access_tokens')
-                ->where('tokenable_id', $user->id)
-                ->where('tokenable_type', User::class)
-                ->delete();
-        }
         return $this->success(null, 'Password changed successfully');
     }
 
