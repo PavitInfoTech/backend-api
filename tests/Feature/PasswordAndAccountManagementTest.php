@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class PasswordAndAccountManagementTest extends TestCase
@@ -13,27 +12,32 @@ class PasswordAndAccountManagementTest extends TestCase
 
     public function test_change_password_succeeds_with_current_password()
     {
-        $user = User::factory()->create(['password' => Hash::make('oldpass')]);
+        $oldHash = hash('sha256', 'oldpass');
+        $newHash = hash('sha256', 'newpass');
+        $user = User::factory()->create(['password' => $oldHash]);
 
         $response = $this->actingAs($user, 'sanctum')->postJson('/api/auth/password/change', [
-            'current_password' => 'oldpass',
-            'password' => 'newpass',
-            'password_confirmation' => 'newpass',
+            'current_password_hash' => $oldHash,
+            'password_hash' => $newHash,
+            'password_hash_confirmation' => $newHash,
         ]);
 
         $response->assertStatus(200)->assertJson(['status' => 'success']);
 
-        $this->assertTrue(Hash::check('newpass', $user->fresh()->password));
+        $this->assertEquals($newHash, $user->fresh()->password);
     }
 
     public function test_change_password_fails_with_wrong_current_password()
     {
-        $user = User::factory()->create(['password' => Hash::make('oldpass')]);
+        $oldHash = hash('sha256', 'oldpass');
+        $wrongHash = hash('sha256', 'wrongpass');
+        $newHash = hash('sha256', 'newpass');
+        $user = User::factory()->create(['password' => $oldHash]);
 
         $response = $this->actingAs($user, 'sanctum')->postJson('/api/auth/password/change', [
-            'current_password' => 'wrongpass',
-            'password' => 'newpass',
-            'password_confirmation' => 'newpass',
+            'current_password_hash' => $wrongHash,
+            'password_hash' => $newHash,
+            'password_hash_confirmation' => $newHash,
         ]);
 
         $response->assertStatus(422)->assertJson(['status' => 'error']);

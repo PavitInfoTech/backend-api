@@ -48,7 +48,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            // Password is received pre-hashed (SHA-256) from frontend, no auto-hashing needed
         ];
     }
 }

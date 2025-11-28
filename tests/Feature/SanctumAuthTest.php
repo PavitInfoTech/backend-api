@@ -12,13 +12,14 @@ class SanctumAuthTest extends TestCase
 
     public function test_register_creates_token()
     {
+        $passwordHash = hash('sha256', 'password');
         $payload = [
             'username' => 'testuser',
             'first_name' => 'Test',
             'last_name' => 'User',
             'email' => 'test@example.com',
-            'password' => 'password',
-            'password_confirmation' => 'password',
+            'password_hash' => $passwordHash,
+            'password_hash_confirmation' => $passwordHash,
         ];
 
         $response = $this->postJson('/api/auth/register', $payload);
@@ -31,11 +32,12 @@ class SanctumAuthTest extends TestCase
 
     public function test_login_returns_token()
     {
-        $user = User::factory()->create(['password' => bcrypt('secret')]);
+        $passwordHash = hash('sha256', 'secret');
+        $user = User::factory()->create(['password' => $passwordHash]);
 
         $response = $this->postJson('/api/auth/login', [
             'email' => $user->email,
-            'password' => 'secret',
+            'password_hash' => $passwordHash,
         ]);
 
         $response->assertStatus(200)
@@ -44,7 +46,8 @@ class SanctumAuthTest extends TestCase
 
     public function test_protected_route_requires_token_and_returns_user()
     {
-        $user = User::factory()->create(['password' => bcrypt('secret')]);
+        $passwordHash = hash('sha256', 'secret');
+        $user = User::factory()->create(['password' => $passwordHash]);
 
         // create token
         $token = $user->createToken('test-token')->plainTextToken;

@@ -23,7 +23,8 @@ class AuthController extends ApiController
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:6|confirmed',
+            'password_hash' => 'required|string|size:64', // SHA-256 hash (64 hex chars)
+            'password_hash_confirmation' => 'required|string|same:password_hash',
         ]);
 
         if ($v->fails()) {
@@ -35,7 +36,7 @@ class AuthController extends ApiController
             'first_name' => $request->first_name,
             'last_name' => $request->last_name ?? null,
             'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'password' => $request->password_hash, // Store the hash directly
         ]);
 
         // Create a Sanctum personal access token
@@ -48,7 +49,7 @@ class AuthController extends ApiController
     {
         $v = Validator::make($request->all(), [
             'email' => 'required|email',
-            'password' => 'required',
+            'password_hash' => 'required|string|size:64', // SHA-256 hash (64 hex chars)
         ]);
 
         if ($v->fails()) {
@@ -57,7 +58,7 @@ class AuthController extends ApiController
 
         $user = User::where('email', $request->email)->first();
 
-        if (! $user || ! Hash::check($request->password, $user->password)) {
+        if (! $user || ! hash_equals($user->password, $request->password_hash)) {
             return $this->error('Invalid credentials', 401);
         }
 
@@ -90,7 +91,7 @@ class AuthController extends ApiController
             // Sanctum stores token column as a SHA-256 hash of the plain token
             $hashed = hash('sha256', $cookieToken);
             // Delete any matching personal access token record
-            \DB::table('personal_access_tokens')->where('token', $hashed)->delete();
+            DB::table('personal_access_tokens')->where('token', $hashed)->delete();
         }
 
         // Clear the cookie from the browser. Also return JSON if requested.
@@ -373,20 +374,21 @@ class AuthController extends ApiController
             ['token' => $token, 'created_at' => now()]
         );
 
-        Mail::to($user->email)->send(new PasswordResetMail($token));
+        Mail::to($user->email)->send(new PasswordResetMail($token, $user->email));
 
         return $this->success(null, 'Password reset link sent if account exists');
     }
 
     /**
-     * Reset user password (accepts token and new password)
+     * Reset user password (accepts token and new password hash)
      */
     public function resetPassword(Request $request)
     {
         $payload = $request->validate([
             'email' => 'required|email',
             'token' => 'required|string',
-            'password' => 'required|min:6|confirmed',
+            'password_hash' => 'required|string|size:64', // SHA-256 hash (64 hex chars)
+            'password_hash_confirmation' => 'required|string|same:password_hash',
         ]);
 
         $row = DB::table('password_reset_tokens')->where('email', $payload['email'])->first();
@@ -405,7 +407,7 @@ class AuthController extends ApiController
             return $this->error('User not found', 404);
         }
 
-        $user->password = Hash::make($payload['password']);
+        $user->password = $payload['password_hash']; // Store the hash directly
         $user->save();
 
         DB::table('password_reset_tokens')->where('email', $payload['email'])->delete();
@@ -427,15 +429,16 @@ class AuthController extends ApiController
         }
 
         $payload = $request->validate([
-            'current_password' => 'required|string',
-            'password' => 'required|string|min:6|confirmed',
+            'current_password_hash' => 'required|string|size:64', // SHA-256 hash (64 hex chars)
+            'password_hash' => 'required|string|size:64', // SHA-256 hash (64 hex chars)
+            'password_hash_confirmation' => 'required|string|same:password_hash',
         ]);
 
-        if (! Hash::check($payload['current_password'], $user->password)) {
+        if (! hash_equals($user->password, $payload['current_password_hash'])) {
             return $this->error('Current password is incorrect', 422);
         }
 
-        $user->password = Hash::make($payload['password']);
+        $user->password = $payload['password_hash']; // Store the hash directly
         $user->save();
 
         return $this->success(null, 'Password changed successfully');
