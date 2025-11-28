@@ -43,12 +43,21 @@ class AIController extends ApiController
             // dispatch job to queue
             ProcessAiRequest::dispatch($aiRequest->id);
 
+            // Build a status URL that depends on whether the API is served on a special subdomain
+            $apiDomain = env('API_DOMAIN');
+            if (! empty($apiDomain)) {
+                $apiDomain = preg_match('/^https?:\/\//', $apiDomain) ? $apiDomain : ('https://' . $apiDomain);
+                $statusUrl = rtrim($apiDomain, '/') . '/ai/jobs/' . $aiRequest->id . '/status';
+            } else {
+                $statusUrl = url('/api/ai/jobs/' . $aiRequest->id . '/status');
+            }
+
             return response()->json([
                 'status' => 'accepted',
                 'message' => 'Request accepted, processing',
                 'data' => [
                     'job_id' => $aiRequest->id,
-                    'status_url' => url('/api/ai/jobs/' . $aiRequest->id . '/status'),
+                    'status_url' => $statusUrl,
                 ],
             ], 202);
         }

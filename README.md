@@ -9,15 +9,36 @@
 
 ## About Laravel
 
+**Note: This repository is configured as an API-only project — Node/Vite front-end tooling has been removed.**
+
+Deployment:
+
+-   If you plan to host your API at a subdomain like `api.example.com` and want endpoints available at the root path (e.g., `https://api.example.com/users`), set the `API_DOMAIN` environment variable to your API host. When `API_DOMAIN` is set, routes in `routes/api.php` are exposed at the root path for that domain (no `/api` prefix).
+-   If `API_DOMAIN` is not set, the repository uses the default `api` prefix (e.g., `https://example.com/api/users`) — this is useful for local development and automated testing.
+
+Example (production `.env`):
+
+```
+API_DOMAIN=api.example.com
+FRONTEND_URL=https://app.example.com
+```
+
+To test locally without a subdomain, keep `API_DOMAIN` blank and use the `/api` prefix as before.
+
+Security / common caveats:
+
+-   If you are using Laravel Sanctum or cookie-based auth, set `SANCTUM_STATEFUL_DOMAINS` to include your SPA domains (not the API domain) and adjust cookie domain settings as needed.
+-   Ensure CORS and allowed origin headers include your SPA origin (`FRONTEND_URL`) when your API is served from a subdomain.
+
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+-   [Simple, fast routing engine](https://laravel.com/docs/routing).
+-   [Powerful dependency injection container](https://laravel.com/docs/container).
+-   Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
+-   Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
+-   Database agnostic [schema migrations](https://laravel.com/docs/migrations).
+-   [Robust background job processing](https://laravel.com/docs/queues).
+-   [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
 
 Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
@@ -33,14 +54,14 @@ We would like to extend our thanks to the following sponsors for funding Laravel
 
 ### Premium Partners
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+-   **[Vehikl](https://vehikl.com)**
+-   **[Tighten Co.](https://tighten.co)**
+-   **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
+-   **[64 Robots](https://64robots.com)**
+-   **[Curotec](https://www.curotec.com/services/technologies/laravel)**
+-   **[DevSquad](https://devsquad.com/hire-laravel-developers)**
+-   **[Redberry](https://redberry.international/laravel-development)**
+-   **[Active Logic](https://activelogic.com)**
 
 ## Contributing
 

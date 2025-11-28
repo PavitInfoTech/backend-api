@@ -1,13 +1,6 @@
-import { defineConfig } from 'vite';
-import laravel from 'laravel-vite-plugin';
-import tailwindcss from '@tailwindcss/vite';
+/*
+ * Vite config removed — this project is now API-only and does not use front-end tooling.
+ * If you need to restore front-end builds, recreate `vite.config.js` with the necessary plugins and inputs.
+ */
 
-export default defineConfig({
-    plugins: [
-        laravel({
-            input: ['resources/css/app.css', 'resources/js/app.js'],
-            refresh: true,
-        }),
-        tailwindcss(),
-    ],
-});
+export default {};

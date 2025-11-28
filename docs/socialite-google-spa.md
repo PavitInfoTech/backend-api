@@ -22,7 +22,7 @@ Why this pattern?
 2. Create OAuth 2.0 Client ID (type: Web application).
 3. Add an Authorized redirect URI that points to your backend callback URL, e.g.:
 
-    - https://api.example.com/api/auth/google/callback
+    - https://api.example.com/auth/google/callback (If you set `API_DOMAIN=api.example.com` the API will be served at root paths on that domain.)
 
 4. Copy the created Client ID and Client secret and add them to your `.env`:
 
@@ -37,6 +37,8 @@ If you're working locally with e.g. `http://localhost:8000`, add the callback fo
 ```
 GOOGLE_REDIRECT=http://localhost:8000/api/auth/google/callback
 ```
+
+Note: If you set `API_DOMAIN` (for example `API_DOMAIN=api.local`), your production callback would be `https://api.example.com/auth/google/callback` (no `/api` prefix).
 
 ---
 
