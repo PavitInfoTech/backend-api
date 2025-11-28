@@ -69,4 +69,44 @@ class AvatarUploadTest extends TestCase
         $this->assertArrayHasKey('name', $response->json('data'));
         $this->assertArrayHasKey('avatar', $response->json('data'));
     }
+
+    public function test_avatar_upload_requires_authentication()
+    {
+        Storage::fake('public');
+
+        $file = UploadedFile::fake()->image('avatar.png');
+
+        $response = $this->postJson('/api/user/avatar', ['avatar' => $file]);
+
+        $response->assertStatus(401)
+            ->assertJsonStructure(['status', 'message', 'errors', 'code', 'timestamp'])
+            ->assertJson(['status' => 'error', 'code' => 401]);
+    }
+
+    public function test_avatar_upload_rejects_non_image_files()
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+        $file = UploadedFile::fake()->create('document.pdf', 100, 'application/pdf');
+
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/user/avatar', ['avatar' => $file]);
+
+        $response->assertStatus(422)
+            ->assertJsonStructure(['status', 'message', 'errors', 'code', 'timestamp'])
+            ->assertJson(['status' => 'error', 'code' => 422]);
+    }
+
+    public function test_avatar_upload_without_file_fails()
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/user/avatar', []);
+
+        $response->assertStatus(422)
+            ->assertJsonStructure(['status', 'message', 'errors', 'code', 'timestamp'])
+            ->assertJson(['status' => 'error', 'code' => 422]);
+    }
 }

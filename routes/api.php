@@ -66,6 +66,8 @@ Route::get('/auth/verify/{token}', [\App\Http\Controllers\Api\AuthController::cl
 // OAuth
 Route::get('/auth/google/redirect', [\App\Http\Controllers\Api\AuthController::class, 'redirectToGoogle']);
 Route::get('/auth/google/callback', [\App\Http\Controllers\Api\AuthController::class, 'handleGoogleCallback']);
+Route::get('/auth/github/redirect', [\App\Http\Controllers\Api\AuthController::class, 'redirectToGithub']);
+Route::get('/auth/github/callback', [\App\Http\Controllers\Api\AuthController::class, 'handleGithubCallback']);
 
 // Public mail endpoints
 Route::post('/mail/contact', [\App\Http\Controllers\Api\MailController::class, 'contact']);

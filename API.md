@@ -118,19 +118,39 @@ Authorization: Bearer <your-plain-text-token-here>
     -   Success (200 or 302): JSON { status: 'success', message: 'Email verified', data: { user } } or 302 redirect to frontend verified page.
 
 -   POST /api/auth/logout (or POST /auth/logout if `API_DOMAIN` is set)
+
     -   POST /api/auth/logout
         -   Behavior: - For API clients (Accept: application/json), the endpoint revokes the current bearer token (or all tokens for the user) and returns JSON: { status: 'success', message: 'Logged out' } — the response includes a Set-Cookie header clearing the `api_token` cookie if present. - For browser flows (normal HTML requests), the endpoint will revoke tokens and return a 302 redirect to `${FRONTEND_URL}/auth/logout`, setting an HttpOnly cookie deletion header so the token never remains in the browser.
 
-### User profile (protected)
+    ### GitHub OAuth
 
--   GET /api/user (or GET /user if `API_DOMAIN` is set)
+    -   GET /api/auth/github/redirect — Redirects the browser to GitHub's OAuth consent page (via Socialite). If your SPA needs the URL to redirect itself, call this endpoint and read the Location header.
+    -   GET /api/auth/github/callback — OAuth callback endpoint which handles the GitHub response and returns a token in JSON (for API clients) or sets a secure `api_token` cookie and redirects to the SPA route on success.
+
+    Behavior is identical to Google OAuth flow but uses the `github` Socialite driver:
+
+    -   Creates the user if not present and saves `provider_name` = 'github' and `provider_id`.
+    -   If a user already exists with the same email, the code attaches `provider` fields to that existing user rather than creating a new one.
+    -   Returns JSON with `user` and `token` in API flows, and sets an `api_token` cookie on browser flows.
+
+### User profile (protected)
 
     -   Returns current authenticated user's profile.
 
--   PUT /api/user (or PUT /user if `API_DOMAIN` is set)
-
+    -   Body (optional fields):
+        -   `name` (string, optional, max 255)
+        -   `email` (string, optional, valid email address, unique among users)
+        -   `avatar` (string, optional, url to avatar image)
+    -   Validation rules:
+        -   `name` => sometimes|string|max:255
+        -   `email` => sometimes|email|unique:users,email,{user_id}
+        -   `avatar` => sometimes|url
+    -   Success (200): returns updated user { status: 'success', message: 'Profile updated', data: { user will be returned }}
+    -   Errors:
+        -   401 Unauthenticated — missing or invalid token
+        -   422 Validation failed — invalid_name/email or email already taken
+        -   500 Server error — database or other internal error
     -   Body (optional any): { name, email, avatar }
-    -   Validates unique email and updates the user.
 
 -   POST /api/user/avatar (or POST /user/avatar if `API_DOMAIN` is set)
 
@@ -164,13 +184,35 @@ Notes: run `php artisan storage:link` in deployment to make `storage/app/public`
 -   POST /api/ai/generate (or POST /ai/generate if `API_DOMAIN` is set)
 -   POST /api/ai/generate
 
-    -   Body: { prompt: string, model?: string, max_tokens?: integer, async?: boolean }
+    -   Body: { prompt: string (required), model?: string, max_tokens?: integer, async?: boolean }
+    -   Validation rules:
+        -   `prompt` => required|string|max:5000
+        -   `model` => sometimes|string|max:255
+        -   `max_tokens` => sometimes|integer|min:1|max:2048
+        -   `async` => sometimes|boolean
     -   Action: Validates and sanitizes prompt input, logs the request (ai_requests table) and either:
         -   Synchronous (default): forwards the request to the configured GORQ service (via `GORQ_API_KEY`) and returns provider result. The `ai_requests` record is updated with status and result.
         -   Async (async=true): creates an `ai_requests` record (status `pending`) and dispatches a queued job to process the request. Responds 202 Accepted with `job_id` and `status_url` to poll.
     -   Rate limiting: protected by `throttle:ai` rate limiter (per-user or by IP). Configure with `AI_RATE_LIMIT_PER_MINUTE` (default 60/min).
     -   Example successful sync response: { status: 'success', data: { ... } }
-    -   Example async accepted response: { status: 'accepted', data: { job_id: 123, status_url: '/api/ai/jobs/123/status' } }
+    -   Example async accepted response (202 Accepted):
+
+```
+HTTP/1.1 202 Accepted
+Content-Type: application/json
+
+{
+    "status": "accepted",
+    "message": "Request accepted, processing",
+    "data": { "job_id": 123, "status_url": "/api/ai/jobs/123/status" }
+}
+```
+
+    -   Errors & failure modes:
+        - 401 Unauthenticated — needs Bearer token or valid cookie
+        - 422 Validation failed — missing prompt or invalid params
+        - 429 Too Many Requests — rate limiter triggered (AI rate limiter `throttle:ai`)
+        - 500 Server Error — AI provider failure or internal error
 
 -   GET /api/ai/jobs/{id}/status (or GET /ai/jobs/{id}/status if `API_DOMAIN` is set)
     -   Returns the job status and result (or error) for async requests:
@@ -179,6 +221,24 @@ Notes: run `php artisan storage:link` in deployment to make `storage/app/public`
 ### Google Maps / Pinned static map
 
 -   POST /api/maps/pin (or POST /maps/pin if `API_DOMAIN` is set)
+
+    -   Protected: requires authentication (Bearer token or auth cookie).
+
+    -   Body: { lat: number, lng: number, address?: string, label?: string, zoom?: integer, width?: integer, height?: integer }
+    -   Validation rules:
+        -   `lat` => required|numeric
+        -   `lng` => required|numeric
+        -   `label` => sometimes|string|max:64
+        -   `zoom` => sometimes|integer|min:0|max:21
+        -   `width` => sometimes|integer|min:1|max:2048
+        -   `height` => sometimes|integer|min:1|max:2048
+    -   Action: Returns a URL to a Google Static Maps image with the requested pin.
+    -   Response structure: { status: 'success', data: { map_url: 'https://maps.googleapis.com/...' } }
+    -   Errors & failure modes:
+        -   401 Unauthenticated — needs Bearer token
+        -   422 Validation failed — missing/invalid lat or lng or other fields
+        -   422 Address could not be geocoded — when address is provided and no geocoding results were found
+        -   500 Server Error — missing or invalid `GOOGLE_MAPS_API_KEY` environment variable
 
 ### Ping / health check
 
@@ -194,6 +254,8 @@ When requests fail, the API returns a consistent JSON error structure with an ap
 -   `code` — the HTTP status code returned (e.g., `401`, `422`, `404`, `500`).
 -   `timestamp` — ISO 8601 timestamp when the response was generated.
 
+**Authentication errors (401):** Protected routes (e.g., `GET /user`, `POST /ai/generate`) require a valid Bearer token. If you access these routes without a token or with an expired/invalid token, the API returns a 401 JSON response — it will **never** redirect to a login page. Your frontend should handle 401 responses by prompting the user to log in.
+
 Example 401 (Unauthenticated):
 
 ```
@@ -202,7 +264,7 @@ Content-Type: application/json
 
 {
     "status": "error",
-    "message": "Unauthenticated",
+    "message": "Unauthenticated.",
     "errors": null,
     "code": 401,
     "timestamp": "2025-11-28T12:34:56Z"
@@ -217,12 +279,27 @@ Content-Type: application/json
 
 {
     "status": "error",
-    "message": "Validation failed",
+    "message": "The given data was invalid.",
     "errors": {
         "email": ["The email field is required."],
         "password": ["The password must be at least 8 characters."]
     },
     "code": 422,
+    "timestamp": "2025-11-28T12:34:56Z"
+}
+```
+
+Example 403 (Forbidden):
+
+```
+HTTP/1.1 403 Forbidden
+Content-Type: application/json
+
+{
+    "status": "error",
+    "message": "Forbidden.",
+    "errors": null,
+    "code": 403,
     "timestamp": "2025-11-28T12:34:56Z"
 }
 ```
@@ -235,9 +312,39 @@ Content-Type: application/json
 
 {
     "status": "error",
-    "message": "Resource not found",
+    "message": "Resource not found.",
     "errors": null,
     "code": 404,
+    "timestamp": "2025-11-28T12:34:56Z"
+}
+```
+
+Example 405 (Method not allowed):
+
+```
+HTTP/1.1 405 Method Not Allowed
+Content-Type: application/json
+
+{
+    "status": "error",
+    "message": "Method not allowed.",
+    "errors": null,
+    "code": 405,
+    "timestamp": "2025-11-28T12:34:56Z"
+}
+```
+
+Example 500 (Server error):
+
+```
+HTTP/1.1 500 Internal Server Error
+Content-Type: application/json
+
+{
+    "status": "error",
+    "message": "Server Error",
+    "errors": null,
+    "code": 500,
     "timestamp": "2025-11-28T12:34:56Z"
 }
 ```
@@ -245,6 +352,7 @@ Content-Type: application/json
 Notes:
 
 -   Internally thrown exceptions return the same standard format. When `APP_DEBUG=true`, additional debug details may be included in the response (`exception`, `trace`) to help troubleshooting; avoid enabling debug in production.
+-   The API **never redirects** to a login page. All errors are returned as JSON with appropriate HTTP status codes. Your SPA/mobile client should handle these codes accordingly (e.g., redirect to login on 401, show validation errors on 422).
 
 ### Success response format
 
@@ -276,15 +384,3 @@ Content-Type: application/json
     -   Response structure: { status: 'success', data: { map_url: 'https://maps.googleapis.com/...' } }
 
 ---
-
-## Implementation notes & next steps
-
--   Replaced the placeholder token generation with Laravel Sanctum personal access tokens. Registration/login now issue real Sanctum tokens; the app includes a `personal_access_tokens` migration and the `User` model uses the `HasApiTokens` trait.
--   Install and configure Laravel Socialite to perform Google OAuth flows and to populate `provider_name`, `provider_id`, and `avatar` fields (see the migration).
--   Improve email flows: create `Mail` classes for templating and integrate password reset using Laravel's built-in features.
--   Add tests for each endpoint and add a simple Postman / OpenAPI specification if you want SDKs or automated testing.
-
-If you'd like, I can next:
-
--   add Sanctum + Socialite installation instructions and scaffold config code, or
--   implement real token-based auth flows and sample Postman/OpenAPI specs.

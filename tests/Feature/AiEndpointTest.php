@@ -66,4 +66,39 @@ class AiEndpointTest extends TestCase
         $response->assertStatus(200)->assertJson(['status' => 'success']);
         $this->assertEquals('finished', $response->json('data.status'));
     }
+
+    public function test_generate_requires_authentication()
+    {
+        $response = $this->postJson('/api/ai/generate', ['prompt' => 'Hi']);
+
+        $response->assertStatus(401)->assertJsonStructure(['status', 'message', 'errors', 'code', 'timestamp']);
+    }
+
+    public function test_generate_validates_prompt_presence_and_length()
+    {
+        $user = \App\Models\User::factory()->create();
+
+        // Missing prompt
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/ai/generate', []);
+        $response->assertStatus(422)->assertJsonStructure(['status', 'message', 'errors', 'code', 'timestamp']);
+
+        // Too long prompt
+        $long = str_repeat('a', 5001);
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/ai/generate', ['prompt' => $long]);
+        $response->assertStatus(422);
+    }
+
+    public function test_job_status_requires_authentication_and_returns_404_for_missing()
+    {
+        $ai = AiRequest::create(['prompt' => 'p', 'status' => 'pending']);
+
+        // unauthenticated -> 401
+        $response = $this->getJson('/api/ai/jobs/' . $ai->id . '/status');
+        $response->assertStatus(401)->assertJsonStructure(['status', 'message', 'errors', 'code', 'timestamp']);
+
+        // authenticated + missing id -> 404
+        $user = \App\Models\User::factory()->create();
+        $response = $this->actingAs($user, 'sanctum')->getJson('/api/ai/jobs/999999/status');
+        $response->assertStatus(404)->assertJson(['status' => 'error']);
+    }
 }

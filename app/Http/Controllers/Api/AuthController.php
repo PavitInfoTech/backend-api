@@ -112,6 +112,69 @@ class AuthController extends ApiController
         }
     }
 
+    public function redirectToGithub(Request $request)
+    {
+        try {
+            return Socialite::driver('github')->redirect();
+        } catch (\Exception $e) {
+            return $this->error('Unable to create GitHub redirect', 500, ['error' => $e->getMessage()]);
+        }
+    }
+
+    public function handleGithubCallback(Request $request)
+    {
+        try {
+            $social = Socialite::driver('github')->user();
+        } catch (\Exception $e) {
+            return $this->error('Failed to get user from GitHub', 400, ['error' => $e->getMessage()]);
+        }
+
+        $provider = 'github';
+        $providerId = $social->getId();
+        $email = $social->getEmail();
+        $name = $social->getName() ?? $social->getNickname() ?? $email;
+        $avatar = $social->getAvatar();
+
+        $user = User::where('provider_name', $provider)->where('provider_id', $providerId)->first();
+
+        if (! $user && $email) {
+            $user = User::where('email', $email)->first();
+        }
+
+        if (! $user) {
+            $user = User::create([
+                'name' => $name,
+                'email' => $email,
+                'password' => Hash::make(Str::random(24)),
+                'provider_name' => $provider,
+                'provider_id' => $providerId,
+                'avatar' => $avatar,
+            ]);
+        } else {
+            $user->provider_name = $user->provider_name ?? $provider;
+            $user->provider_id = $user->provider_id ?? $providerId;
+            $user->avatar = $avatar ?? $user->avatar;
+            $user->save();
+        }
+
+        $token = $user->createToken('github')->plainTextToken;
+
+        if ($request->wantsJson() || $request->accepts('application/json')) {
+            return $this->success(['user' => $user, 'token' => $token], 'Authenticated via GitHub');
+        }
+
+        $minutes = (int) env('SANCTUM_COOKIE_TTL', 60 * 24 * 30);
+        $frontend = rtrim(config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:3000')), '/');
+        $redirectTo = $frontend . '/auth/complete';
+
+        $secure = ! app()->environment('local');
+        $sameSite = 'Lax';
+
+        $cookie = cookie('api_token', $token, $minutes, '/', null, $secure, true, false, $sameSite);
+
+        return redirect($redirectTo)->withCookie($cookie);
+    }
+
     public function handleGoogleCallback(Request $request)
     {
         try {

@@ -1,0 +1,45 @@
+##############################################
+# Laravel root .htaccess
+#
+# This file is intended for hosts where you cannot change the document root
+# to the Laravel application's `public/` directory. It rewrites incoming
+# requests to `public/`, denies access to sensitive files, and disables
+# directory listing.
+# WARNING: Using this is less secure than setting the host's document root
+# to `public/`. Only use if you absolutely cannot alter the docroot.
+##############################################
+
+<IfModule mod_autoindex.c>
+    # Disable directory listings to avoid exposing repository files
+    Options -Indexes
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Deny access to obviously sensitive files at the site root
+    <FilesMatch "(^\.|^\.env$|composer\.(json|lock)|artisan|phpunit\.xml|package(-lock)?\.json|README|LICENSE|\.git)">
+        Require all denied
+    </FilesMatch>
+
+    # If the request is for an existing file or directory, serve it directly
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Prevent an infinite loop — do not rewrite requests already targeting /public/
+    RewriteCond %{REQUEST_URI} !^/public/
+
+    # Rewrite all other requests to the `public/` folder so Laravel's front
+    # controller can handle routing (this preserves query strings).
+    RewriteRule ^(.*)$ public/$1 [L,QSA]
+
+    # For security: deny direct access to PHP files outside the public/ folder
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule \.php$ - [F,L]
+
+    # For security: block access to internal framework directories if requested under document root
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(app|bootstrap|config|database|resources|storage|tests|vendor|node_modules)/ - [F,L]
+</IfModule>

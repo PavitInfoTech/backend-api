@@ -30,6 +30,14 @@ Postman collection:
 -   `docs/Postman-Backend-API.postman_collection.json` contains a set of example requests for all API endpoints, using environment variables (baseUrl, apiToken, testUserEmail, testUserPassword, userId, jobId, verificationToken). Import this into Postman and set `baseUrl` appropriately (e.g., `http://localhost:8000` or `https://api.example.com`).
 -   -   `docs/Postman-Backend-API.postman_environment.json` is a sample Postman environment for quick import, which includes default values for `baseUrl` and test user variables.
 
+cPanel & shared hosting tips:
+
+-   Preferred: Point the subdomain's document root to the `public/` folder for the project. This prevents accidental exposure of app code and static assets are still served from `public/`.
+-   If you cannot change the Document Root, you can add a root-level `.htaccess` file that rewrites incoming requests into `public/` and blocks direct requests to application directories (less secure). We included an example root `.htaccess` in the repository; it's not a substitution for setting the document root but it helps in constrained environments.
+
+    -   After uploading the repo, ensure `.env` is present and `composer install` has been run. If `.htaccess` is ignored, verify `AllowOverride` is enabled with your host.
+    -   See `./.htaccess` in repo for the suggested rewrite and security block rules.
+
 Security / common caveats:
 
 -   If you are using Laravel Sanctum or cookie-based auth, set `SANCTUM_STATEFUL_DOMAINS` to include your SPA domains (not the API domain) and adjust cookie domain settings as needed.

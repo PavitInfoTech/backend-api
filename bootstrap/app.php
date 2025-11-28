@@ -48,8 +48,94 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up'
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Use custom Authenticate middleware that returns JSON 401 instead of redirecting
+        $middleware->alias([
+            'auth' => \App\Http\Middleware\Authenticate::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Handle all API exceptions with consistent JSON format
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, $request) {
+            if ($request->expectsJson() || $request->is('api/*') || $request->is('*')) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $e->getMessage() ?: 'Unauthenticated.',
+                    'errors' => null,
+                    'code' => 401,
+                    'timestamp' => now()->toIso8601String(),
+                ], 401);
+            }
+        });
+
+        $exceptions->render(function (\Illuminate\Validation\ValidationException $e, $request) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'The given data was invalid.',
+                    'errors' => $e->errors(),
+                    'code' => 422,
+                    'timestamp' => now()->toIso8601String(),
+                ], 422);
+            }
+        });
+
+        $exceptions->render(function (\Illuminate\Auth\Access\AuthorizationException $e, $request) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $e->getMessage() ?: 'Forbidden.',
+                    'errors' => null,
+                    'code' => 403,
+                    'timestamp' => now()->toIso8601String(),
+                ], 403);
+            }
+        });
+
+        $exceptions->render(function (\Illuminate\Database\Eloquent\ModelNotFoundException $e, $request) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Resource not found.',
+                    'errors' => null,
+                    'code' => 404,
+                    'timestamp' => now()->toIso8601String(),
+                ], 404);
+            }
+        });
+
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Route not found.',
+                    'errors' => null,
+                    'code' => 404,
+                    'timestamp' => now()->toIso8601String(),
+                ], 404);
+            }
+        });
+
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException $e, $request) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Method not allowed.',
+                    'errors' => null,
+                    'code' => 405,
+                    'timestamp' => now()->toIso8601String(),
+                ], 405);
+            }
+        });
+
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, $request) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $e->getMessage() ?: 'HTTP error',
+                    'errors' => null,
+                    'code' => $e->getStatusCode(),
+                    'timestamp' => now()->toIso8601String(),
+                ], $e->getStatusCode());
+            }
+        });
     })->create();
