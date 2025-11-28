@@ -179,6 +179,10 @@ Notes: run `php artisan storage:link` in deployment to make `storage/app/public`
 ### Google Maps / Pinned static map
 
 -   POST /api/maps/pin (or POST /maps/pin if `API_DOMAIN` is set)
+
+### Ping / health check
+
+-   GET /api/ping — returns a simple JSON response with `{ "status": "ok" }`. If `API_DOMAIN` is set you can use `GET /ping` on your API subdomain (e.g. `https://api.example.com/ping`) to check it is reachable.
     -   Body: { lat: number, lng: number, label?: string, zoom?: integer, width?: integer, height?: integer }
     -   Action: Returns a URL to a Google Static Maps image with the requested pin.
     -   Response structure: { status: 'success', data: { map_url: 'https://maps.googleapis.com/...' } }

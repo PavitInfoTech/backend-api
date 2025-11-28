@@ -28,6 +28,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/maps/pin', [\App\Http\Controllers\Api\MapsController::class, 'createPin']);
 });
 
+// Health / ping endpoint — simple status check returning JSON
+Route::get('/ping', function () {
+    return response()->json(['status' => 'ok']);
+})->name('ping');
+
 // Public profiles
 Route::get('/users/{id}/public', [\App\Http\Controllers\Api\ProfileController::class, 'publicProfile']);
 
