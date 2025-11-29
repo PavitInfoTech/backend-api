@@ -44,7 +44,10 @@ class AuthController extends ApiController
         // Create a Sanctum personal access token
         $token = $user->createToken('api-token')->plainTextToken;
 
-        return $this->success(['user' => $user, 'token' => $token], 'Registered', 201);
+        // Automatically send email verification
+        $this->sendVerificationEmail($user);
+
+        return $this->success(['user' => $user, 'token' => $token], 'Registered. Please check your email to verify your account.', 201);
     }
 
     public function login(Request $request)
@@ -389,7 +392,21 @@ class AuthController extends ApiController
     }
 
     /**
-     * Send an email verification message to the user (or email provided)
+     * Helper method to send verification email to a user.
+     */
+    protected function sendVerificationEmail(User $user): void
+    {
+        $token = Str::random(64);
+        DB::table('email_verification_tokens')->updateOrInsert(
+            ['email' => $user->email],
+            ['token' => $token, 'created_at' => now()]
+        );
+
+        Mail::to($user->email)->queue(new EmailVerificationMail($token));
+    }
+
+    /**
+     * Resend email verification message to the user (for users who missed or lost the original email).
      */
     public function sendVerification(Request $request)
     {
@@ -398,20 +415,15 @@ class AuthController extends ApiController
 
         $user = User::where('email', $email)->first();
         if (! $user) {
-            return $this->error('User not found', 404);
+            // Don't reveal whether user exists for security
+            return $this->success(null, 'If this email is registered and unverified, a verification email has been sent');
         }
 
         if ($user->email_verified_at) {
             return $this->success(null, 'Email already verified');
         }
 
-        $token = Str::random(64);
-        DB::table('email_verification_tokens')->updateOrInsert(
-            ['email' => $user->email],
-            ['token' => $token, 'created_at' => now()]
-        );
-
-        Mail::to($user->email)->send(new EmailVerificationMail($token));
+        $this->sendVerificationEmail($user);
 
         return $this->success(null, 'Verification email sent');
     }

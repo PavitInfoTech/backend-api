@@ -23,9 +23,34 @@ class EmailVerificationTest extends TestCase
 
         $response->assertStatus(200)->assertJson(['status' => 'success']);
 
-        Mail::assertSent(EmailVerificationMail::class);
+        Mail::assertQueued(EmailVerificationMail::class);
 
         $this->assertDatabaseHas('email_verification_tokens', ['email' => $user->email]);
+    }
+
+    public function test_send_verification_for_already_verified_user()
+    {
+        Mail::fake();
+
+        $user = User::factory()->create(['email' => 'verified@example.com', 'email_verified_at' => now()]);
+
+        $response = $this->postJson('/api/auth/verify/send', ['email' => $user->email]);
+
+        $response->assertStatus(200)->assertJson(['status' => 'success', 'message' => 'Email already verified']);
+
+        Mail::assertNothingQueued();
+    }
+
+    public function test_send_verification_for_nonexistent_email_does_not_reveal()
+    {
+        Mail::fake();
+
+        $response = $this->postJson('/api/auth/verify/send', ['email' => 'nonexistent@example.com']);
+
+        // Should return success to not reveal whether email exists
+        $response->assertStatus(200)->assertJson(['status' => 'success']);
+
+        Mail::assertNothingQueued();
     }
 
     public function test_verify_email_redirects_and_marks_verified()

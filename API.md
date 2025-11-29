@@ -129,8 +129,9 @@ For a full guide on configuring Google Cloud credentials, Socialite server usage
         -   email (string, required)
         -   password_hash (string, required, 64-char SHA-256 hex hash)
         -   password_hash_confirmation (string, required, must match password_hash)
+    -   Behavior: Creates the user, issues a Sanctum token, and **automatically sends a verification email**. The user should verify their email by clicking the link in the email.
     -   Success (201):
-        -   { status: 'success', message: 'Registered', data: { user: {...}, token: '...'} }
+        -   { status: 'success', message: 'Registered. Please check your email to verify your account.', data: { user: {...}, token: '...'} }
 
     Example request (register):
 
@@ -280,8 +281,8 @@ Authorization: Bearer <your-plain-text-token-here>
 -   POST /api/auth/verify/send (or POST /auth/verify/send if `API_DOMAIN` is set)
 
     -   Body: { email } or (authenticated) send to current user
-    -   Behavior: creates an email verification token stored in `email_verification_tokens` and sends a verification email with a backend callback URL. The callback verifies the token and marks the account as verified.
-    -   Success (200): { status: 'success', message: 'Verification email sent' }
+    -   Behavior: **Resend verification email** for users who missed or lost the original email sent during registration. Creates/updates an email verification token stored in `email_verification_tokens` and sends a verification email. For security, the response does not reveal whether the email exists if unregistered.
+    -   Success (200): { status: 'success', message: 'Verification email sent' } or 'Email already verified' if already verified
 
 -   GET /api/auth/verify/{token} (or GET /auth/verify/{token} if `API_DOMAIN` is set)
 
@@ -447,12 +448,27 @@ Notes: run `php artisan storage:link` in deployment to make `storage/app/public`
 
 -   POST /api/mail/newsletter (or POST /mail/newsletter if `API_DOMAIN` is set)
 
-    -   Body: { email }
-    -   Action: Adds an email for newsletter signup (stub — you should save to DB or 3rd party service).
+    -   Body: { email, name? }
+    -   Validation: `email` => required|email, `name` => sometimes|string|max:255
+    -   Action: Creates a newsletter subscriber with a verification token and sends a verification email. A notification is also sent to the admin inbox. Duplicate subscription attempts are idempotent.
+    -   Response (200): { status: 'success', message: 'Newsletter signup processed. Please check your email to verify.', data: { subscriber_id } }
+
+-   GET /api/mail/newsletter/verify/{token} (or GET /mail/newsletter/verify/{token} if `API_DOMAIN` is set)
+
+    -   Action: Verifies the newsletter subscription via the token sent in the verification email. Once verified, sends a personalized welcome email to the subscriber. If `FRONTEND_URL` is set and request is not JSON, redirects to `{FRONTEND_URL}/newsletter/verified`.
+    -   Response (200): { status: 'success', message: 'Subscription verified successfully' }
+    -   Response (404): Invalid or expired token
+
+-   GET /api/mail/newsletter/unsubscribe/{token} (or GET /mail/newsletter/unsubscribe/{token} if `API_DOMAIN` is set)
+
+    -   Action: Unsubscribes the user from the newsletter by deleting their record. The token is unique per subscriber and included in all newsletter emails. If `FRONTEND_URL` is set and request is not JSON, redirects to `{FRONTEND_URL}/newsletter/unsubscribed`.
+    -   Response (200): { status: 'success', message: 'Successfully unsubscribed from newsletter', data: { email } }
+    -   Response (404): Invalid or expired token
 
 -   POST /api/mail/password-reset (or POST /mail/password-reset if `API_DOMAIN` is set)
     -   Body: { email }
-    -   Action: Placeholder to send password reset email — integrate Laravel's password reset flow for production.
+    -   Action: Creates a password reset token and sends the `PasswordResetMail` to the user. Response does not reveal whether the email exists (security best practice).
+    -   Response (200): { status: 'success', message: 'If this email is registered, a password reset link has been sent' }
 
 ### AI / Gorq
 

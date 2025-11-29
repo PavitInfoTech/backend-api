@@ -90,6 +90,8 @@ Route::get('/auth/github/callback', [\App\Http\Controllers\Api\AuthController::c
 // Public mail endpoints
 Route::post('/mail/contact', [\App\Http\Controllers\Api\MailController::class, 'contact']);
 Route::post('/mail/newsletter', [\App\Http\Controllers\Api\MailController::class, 'newsletter']);
+Route::get('/mail/newsletter/verify/{token}', [\App\Http\Controllers\Api\MailController::class, 'verifyNewsletter']);
+Route::get('/mail/newsletter/unsubscribe/{token}', [\App\Http\Controllers\Api\MailController::class, 'unsubscribe']);
 Route::post('/mail/password-reset', [\App\Http\Controllers\Api\MailController::class, 'passwordReset']);
 
 // Dev tools: run migrations via HTTP POST. Use X-RUN-MIG-TOKEN header (env RUN_MIG_TOKEN) and set ALLOW_RUN_MIG=true in .env.

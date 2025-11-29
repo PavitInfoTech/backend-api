@@ -2,16 +2,20 @@
 
 namespace Tests\Feature;
 
+use App\Mail\EmailVerificationMail;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class SanctumAuthTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_register_creates_token()
+    public function test_register_creates_token_and_sends_verification_email()
     {
+        Mail::fake();
+
         $passwordHash = hash('sha256', 'password');
         $payload = [
             'username' => 'testuser',
@@ -28,6 +32,9 @@ class SanctumAuthTest extends TestCase
             ->assertJsonStructure(['status', 'message', 'data' => ['user', 'token']]);
 
         $this->assertDatabaseHas('users', ['email' => 'test@example.com']);
+
+        // Verification email should be queued
+        Mail::assertQueued(EmailVerificationMail::class);
     }
 
     public function test_login_returns_token()
