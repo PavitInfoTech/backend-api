@@ -23,7 +23,7 @@ class EmailVerificationTest extends TestCase
 
         $response->assertStatus(200)->assertJson(['status' => 'success']);
 
-        Mail::assertQueued(EmailVerificationMail::class);
+        Mail::assertSent(EmailVerificationMail::class);
 
         $this->assertDatabaseHas('email_verification_tokens', ['email' => $user->email]);
     }
@@ -38,7 +38,7 @@ class EmailVerificationTest extends TestCase
 
         $response->assertStatus(200)->assertJson(['status' => 'success', 'message' => 'Email already verified']);
 
-        Mail::assertNothingQueued();
+        Mail::assertNothingSent();
     }
 
     public function test_send_verification_for_nonexistent_email_does_not_reveal()
@@ -50,7 +50,7 @@ class EmailVerificationTest extends TestCase
         // Should return success to not reveal whether email exists
         $response->assertStatus(200)->assertJson(['status' => 'success']);
 
-        Mail::assertNothingQueued();
+        Mail::assertNothingSent();
     }
 
     public function test_verify_email_redirects_and_marks_verified()

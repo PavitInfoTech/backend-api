@@ -75,7 +75,12 @@ class AIController extends ApiController
 
         if (isset($result['error'])) {
             $aiRequest->update(['status' => 'failed', 'error' => json_encode($result)]);
-            return $this->error('AI provider error', 500, $result['error'] ?? $result);
+            $errors = $result['error'] ?? $result;
+            // Ensure $errors is an array or null to match ApiController::error signature
+            if (! is_array($errors)) {
+                $errors = ['message' => (string) $errors];
+            }
+            return $this->error('AI provider error', 500, $errors);
         }
 
         // store result and mark finished

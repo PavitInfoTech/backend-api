@@ -36,9 +36,9 @@ class NewsletterTest extends TestCase
         $this->assertNull($subscriber->verified_at);
 
         // Verification mail sent, not welcome mail yet
-        Mail::assertQueued(NewsletterVerificationMail::class);
-        Mail::assertNotQueued(NewsletterSignupMail::class);
-        Mail::assertQueued(AdminNewsletterNotificationMail::class);
+        Mail::assertSent(NewsletterVerificationMail::class);
+        Mail::assertNotSent(NewsletterSignupMail::class);
+        Mail::assertSent(AdminNewsletterNotificationMail::class);
     }
 
     public function test_newsletter_verify_marks_verified_and_sends_welcome()
@@ -61,7 +61,7 @@ class NewsletterTest extends TestCase
         $this->assertNull($subscriber->verification_token);
 
         // Welcome mail now sent
-        Mail::assertQueued(NewsletterSignupMail::class);
+        Mail::assertSent(NewsletterSignupMail::class);
     }
 
     public function test_newsletter_verify_invalid_token_returns_404()
@@ -109,7 +109,7 @@ class NewsletterTest extends TestCase
 
         $response->assertStatus(200)->assertJson(['status' => 'success', 'message' => 'Email already subscribed']);
 
-        Mail::assertNothingQueued();
+        Mail::assertNothingSent();
     }
 
     public function test_password_reset_sends_email_for_existing_user()
@@ -122,7 +122,7 @@ class NewsletterTest extends TestCase
 
         $response->assertStatus(200)->assertJson(['status' => 'success']);
 
-        Mail::assertQueued(PasswordResetMail::class, function ($mail) {
+        Mail::assertSent(PasswordResetMail::class, function ($mail) {
             return $mail->email === 'reset@example.com';
         });
     }
@@ -135,6 +135,6 @@ class NewsletterTest extends TestCase
 
         $response->assertStatus(200)->assertJson(['status' => 'success']);
 
-        Mail::assertNothingQueued();
+        Mail::assertNothingSent();
     }
 }

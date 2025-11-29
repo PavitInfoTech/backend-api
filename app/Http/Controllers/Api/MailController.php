@@ -61,13 +61,13 @@ class MailController extends ApiController
             'unsubscribe_token' => Str::random(64),
         ]);
 
-        // Send verification email to user
-        Mail::to($email)->queue(new NewsletterVerificationMail($subscriber));
+        // Send verification email to user immediately
+        Mail::to($email)->send(new NewsletterVerificationMail($subscriber));
 
         // Notify admin
         $adminInbox = config('mail.from.address', env('MAIL_FROM_ADDRESS'));
         if (! empty($adminInbox)) {
-            Mail::to($adminInbox)->queue(new AdminNewsletterNotificationMail($email));
+            Mail::to($adminInbox)->send(new AdminNewsletterNotificationMail($email));
         }
 
         return $this->success(['subscriber_id' => $subscriber->id], 'Newsletter signup processed. Please check your email to verify.');
@@ -94,7 +94,7 @@ class MailController extends ApiController
         ]);
 
         // Send the welcome email now that they're verified
-        Mail::to($subscriber->email)->queue(new NewsletterSignupMail($subscriber));
+        Mail::to($subscriber->email)->send(new NewsletterSignupMail($subscriber));
 
         // Redirect to frontend if set and request is not JSON, otherwise return JSON
         $frontend = config('app.frontend_url', env('FRONTEND_URL'));
@@ -155,7 +155,7 @@ class MailController extends ApiController
         );
 
         // Send password reset mail using the existing PasswordResetMail mailable
-        Mail::to($email)->queue(new PasswordResetMail($token, $email));
+        Mail::to($email)->send(new PasswordResetMail($token, $email));
 
         return $this->success(null, 'If this email is registered, a password reset link has been sent');
     }

@@ -33,8 +33,8 @@ class SanctumAuthTest extends TestCase
 
         $this->assertDatabaseHas('users', ['email' => 'test@example.com']);
 
-        // Verification email should be queued
-        Mail::assertQueued(EmailVerificationMail::class);
+        // Verification email should be sent immediately
+        Mail::assertSent(EmailVerificationMail::class);
     }
 
     public function test_login_returns_token()

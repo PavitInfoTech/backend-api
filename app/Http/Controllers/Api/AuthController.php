@@ -402,7 +402,7 @@ class AuthController extends ApiController
             ['token' => $token, 'created_at' => now()]
         );
 
-        Mail::to($user->email)->queue(new EmailVerificationMail($token));
+        Mail::to($user->email)->send(new EmailVerificationMail($token));
     }
 
     /**
