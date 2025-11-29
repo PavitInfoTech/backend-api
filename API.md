@@ -101,7 +101,7 @@ For a full guide on configuring Google Cloud credentials, Socialite server usage
 -   **Email verification** — `POST /auth/verify/send` issues tokens; `GET /auth/verify/{token}` validates them and either returns JSON or redirects to the SPA.
 -   **Password reset** — `POST /auth/password/forgot` creates reset tokens and emails users; `POST /auth/password/reset` validates the token and updates the stored password hash.
 -   **Social linking** — Authenticated users can link/unlink Google/GitHub providers via `/auth/link/...` and `/auth/unlink` so future logins can use OAuth.
--   **Profile & session hygiene** — Protected endpoints (e.g., `/user`, `/ai/generate`, `/maps/pin`) require the Bearer token or the secure `api_token` cookie returned by the OAuth callbacks.
+-   **Profile & session hygiene** — Protected endpoints (e.g., `/user`, `/ai/generate`) require the Bearer token or the secure `api_token` cookie returned by the OAuth callbacks.
 
 > **⚠️ IMPORTANT: Password Hashing Requirement**
 >
@@ -494,28 +494,43 @@ Content-Type: application/json
     -   Returns the job status and result (or error) for async requests:
     -   Response (200): { status: 'success', data: { id, status, result?, error?, meta?, created_at, updated_at } }
 
-### Google Maps / Pinned static map
+### Google Maps / Embed & Link
 
 -   POST /api/maps/pin (or POST /maps/pin if `API_DOMAIN` is set)
 
-    -   Protected: requires authentication (Bearer token or auth cookie).
+    -   Public: does not require authentication (no Bearer token needed)
 
-    -   Body: { lat?: number, lng?: number, address?: string, label?: string, zoom?: integer, width?: integer, height?: integer }
+    -   Body: { address: string (required), zoom?: integer, width?: integer, height?: integer, map_type?: string }
     -   Validation rules:
-        -   `address` => sometimes|string|max:255 (can be used instead of lat/lng; will be geocoded)
-        -   `lat` => required_without:address|numeric
-        -   `lng` => required_without:address|numeric
-        -   `label` => sometimes|string|max:64
-        -   `zoom` => sometimes|integer|min:0|max:21
-        -   `width` => sometimes|integer|min:1|max:2048
-        -   `height` => sometimes|integer|min:1|max:2048
-    -   Action: Returns a URL to a Google Static Maps image with the requested pin. If `address` is provided instead of coordinates, the backend will geocode it using the Google Geocoding API.
-    -   Response structure: { status: 'success', data: { map_url: 'https://maps.googleapis.com/...' } }
+        -   `address` => required|string|max:500
+        -   `zoom` => sometimes|integer|min:0|max:21 (default: 15)
+        -   `width` => sometimes|integer|min:1|max:2048 (default: 600, for iframe)
+        -   `height` => sometimes|integer|min:1|max:2048 (default: 450, for iframe)
+        -   `map_type` => sometimes|string|in:roadmap,satellite (default: roadmap)
+    -   Action: Returns Google Maps URLs for the given address. Uses the Google Maps Embed API (requires Maps JavaScript API key with Embed API enabled).
+    -   Response structure:
+        ```json
+        {
+            "status": "success",
+            "message": "Google Maps URLs generated",
+            "data": {
+                "embed_url": "https://www.google.com/maps/embed/v1/place?key=...&q=...",
+                "maps_link": "https://www.google.com/maps/search/?api=1&query=...",
+                "iframe": "<iframe width=\"600\" height=\"450\" ... src=\"...\"></iframe>",
+                "address": "1600 Amphitheatre Parkway, Mountain View, CA"
+            },
+            "code": 200,
+            "timestamp": "2025-11-29T12:00:00Z"
+        }
+        ```
+    -   Response fields:
+        -   `embed_url` — URL for use in an iframe `src` attribute (Google Maps Embed API)
+        -   `maps_link` — Direct link to Google Maps that opens in browser or mobile app
+        -   `iframe` — Ready-to-use HTML iframe element with the embed URL
+        -   `address` — The original address provided
     -   Errors & failure modes:
-        -   401 Unauthenticated — needs Bearer token
-        -   422 Validation failed — missing lat/lng or address, or invalid field values
-        -   422 Address could not be geocoded — when address is provided and no geocoding results were found
-        -   500 Server Error — missing or invalid `GOOGLE_MAPS_API_KEY` environment variable
+        -   422 Validation failed — missing or invalid address/fields
+        -   500 Server Error — missing `GOOGLE_MAPS_API_KEY` environment variable
 
 ### Ping / health check
 

@@ -28,8 +28,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/ai/generate', [\App\Http\Controllers\Api\AIController::class, 'generate'])->middleware('throttle:ai');
     Route::get('/ai/jobs/{id}/status', [\App\Http\Controllers\Api\AIController::class, 'jobStatus']);
 
-    // Maps
-    Route::post('/maps/pin', [\App\Http\Controllers\Api\MapsController::class, 'createPin']);
+    // Maps (moved to public routes)
 
     // Social linking (authenticated flows) — attach social provider to an existing account
     Route::get('/auth/link/google/redirect', [\App\Http\Controllers\Api\AuthController::class, 'linkToGoogle']);
@@ -66,6 +65,9 @@ Route::get('/ping', function () {
 
 // Public profiles
 Route::get('/users/{id}/public', [\App\Http\Controllers\Api\ProfileController::class, 'publicProfile']);
+
+// Maps (public) - Generate Google Maps embed & link for an address
+Route::post('/maps/pin', [\App\Http\Controllers\Api\MapsController::class, 'createPin']);
 
 // Auth (public)
 Route::post('/auth/register', [\App\Http\Controllers\Api\AuthController::class, 'register']);
