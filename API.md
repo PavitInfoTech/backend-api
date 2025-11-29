@@ -475,14 +475,17 @@ Notes: run `php artisan storage:link` in deployment to make `storage/app/public`
 -   POST /api/ai/generate (or POST /ai/generate if `API_DOMAIN` is set) — Public endpoint
 -   POST /api/ai/generate
 
-    -   Body: { prompt: string (required), model?: string, max_tokens?: integer, async?: boolean }
+    -   Body: { prompt?: string (required without messages), messages?: array (required without prompt), model?: string, max_tokens?: integer, async?: boolean }
     -   Validation rules:
-        -   `prompt` => required|string|max:5000
+        -   `prompt` => required_without:messages|string|max:5000
+        -   `messages` => required_without:prompt|array
+        -   `messages.*.role` => sometimes|string|in:system,user,assistant,tool
+        -   `messages.*.content` => sometimes|string|array
         -   `model` => sometimes|string|max:255
         -   `max_tokens` => sometimes|integer|min:1|max:2048
         -   `async` => sometimes|boolean
-    -   Action: Validates and sanitizes prompt input, logs the request (ai_requests table) and either:
-        -   Synchronous (default): forwards the request to the configured GORQ service (via `GORQ_API_KEY`) and returns provider result. The `ai_requests` record is updated with status and result.
+    -   Action: Validates and sanitizes `prompt` or `messages` input, logs the request (`ai_requests` table) and either:
+        -   Synchronous (default): builds a chat-style payload and forwards the request to the configured Gorq service (via `GORQ_API_KEY`) and returns the provider result. The `ai_requests` record is updated with status and result. If only `prompt` was provided, it is converted to a single-message conversation where the role is `user`.
         -   Async (async=true): creates an `ai_requests` record (status `pending`) and dispatches a queued job to process the request. Responds 202 Accepted with `job_id` and `status_url` to poll.
     -   Rate limiting: protected by `throttle:ai` rate limiter (per IP). Configure with `AI_RATE_LIMIT_PER_MINUTE` (default 60/min).
     -   Example successful sync response: { status: 'success', data: { ... } }
@@ -503,7 +506,47 @@ Content-Type: application/json
         - 401 Unauthenticated — (not used) endpoint is public; some UI may prefer authenticated usage for billing/audit
         - 422 Validation failed — missing prompt or invalid params
         - 429 Too Many Requests — rate limiter triggered (AI rate limiter `throttle:ai`)
-        - 500 Server Error — AI provider failure or internal error
+                - 500 Server Error — AI provider failure or internal error. Response will include `errors` which may contain `payload` (the request payload sent to the provider) and `gorq_response` (raw response details captured from Gorq including status, body, and parsed JSON when appropriate) for debugging. This extra detail can be disabled in production if you prefer not to reveal provider responses.
+
+        -   Example request (Chat Completions style):
+
+```
+POST /api/ai/generate
+Content-Type: application/json
+
+{
+    "messages": [
+        { "role": "system", "content": "You are a helpful assistant." },
+        { "role": "user", "content": "Give me a brief introduction to IoT monitoring." }
+    ],
+    "model": "gpt-test",
+    "max_tokens": 256
+}
+```
+
+        -   Example error response when Gorq fails (500):
+
+```
+HTTP/1.1 500 Internal Server Error
+Content-Type: application/json
+
+{
+    "status": "error",
+    "message": "AI provider error",
+    "errors": {
+        "payload": {
+            "messages": [ { "role": "user", "content": "..." } ],
+            "model": "gpt-test",
+            "max_tokens": 256
+        },
+        "gorq_response": {
+            "status": 502,
+            "body": "Bad Gateway",
+            "json": null
+        }
+    }
+}
+```
 
     -   GET /api/ai/jobs/{id}/status (or GET /ai/jobs/{id}/status if `API_DOMAIN` is set) — Public
     -   Returns the job status and result (or error) for async requests:

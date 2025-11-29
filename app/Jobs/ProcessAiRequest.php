@@ -35,8 +35,9 @@ class ProcessAiRequest implements ShouldQueue
         $aiReq->update(['status' => 'running']);
 
         try {
+            // Build payload using 'messages' if present in meta, otherwise fallback to prompt
             $payload = [
-                'prompt' => $aiReq->prompt,
+                'messages' => $aiReq->meta['messages'] ?? [['role' => 'user', 'content' => $aiReq->prompt]],
                 'model' => $aiReq->model ?? env('GORQ_DEFAULT_MODEL'),
             ];
 
@@ -45,7 +46,10 @@ class ProcessAiRequest implements ShouldQueue
             if (isset($result['error'])) {
                 $aiReq->update(['status' => 'failed', 'error' => json_encode($result)]);
             } else {
-                $aiReq->update(['status' => 'finished', 'result' => json_encode($result), 'meta' => $result]);
+                // append gorq_response into meta rather than overwrite
+                $meta = is_array($aiReq->meta) ? $aiReq->meta : [];
+                $meta['gorq_response'] = $result;
+                $aiReq->update(['status' => 'finished', 'result' => json_encode($result), 'meta' => $meta]);
             }
         } catch (Exception $e) {
             $aiReq->update(['status' => 'failed', 'error' => $e->getMessage()]);

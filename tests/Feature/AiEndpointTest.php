@@ -105,4 +105,70 @@ class AiEndpointTest extends TestCase
         $response = $this->getJson('/api/ai/jobs/999999/status');
         $response->assertStatus(404)->assertJson(['status' => 'error']);
     }
+
+    public function test_gorq_failure_returns_detailed_error_including_payload_and_gorq_response()
+    {
+        // Mock GorqService to simulate an HTTP error
+        $mock = \Mockery::mock(GorqService::class);
+        $mock->shouldReceive('generate')->andReturnUsing(function () {
+            return [
+                'error' => 'Gorq request failed',
+                'status' => 502,
+                'body' => 'Bad Gateway',
+                'json' => null,
+            ];
+        });
+        $this->app->instance(GorqService::class, $mock);
+
+        $user = \App\Models\User::factory()->create();
+
+        $payload = ['prompt' => 'Failing prompt', 'model' => 'gpt-test'];
+
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/ai/generate', $payload);
+
+        $response->assertStatus(500)->assertJson(['status' => 'error']);
+
+        $errors = $response->json('errors');
+        $this->assertIsArray($errors);
+        $this->assertArrayHasKey('payload', $errors);
+        // payload may provide 'prompt' for legacy or 'messages' for chat-style
+        if (array_key_exists('prompt', $errors['payload'])) {
+            $this->assertEquals('Failing prompt', $errors['payload']['prompt']);
+        } else {
+            $this->assertArrayHasKey('messages', $errors['payload']);
+            $this->assertEquals('Failing prompt', $errors['payload']['messages'][0]['content']);
+        }
+        $this->assertArrayHasKey('gorq_response', $errors);
+        $this->assertEquals(502, $errors['gorq_response']['status']);
+        $this->assertEquals('Bad Gateway', $errors['gorq_response']['body']);
+    }
+
+    public function test_generate_accepts_messages_array()
+    {
+        // Mock the GorqService to return a predictable result
+        $mock = \Mockery::mock(GorqService::class);
+        $mock->shouldReceive('generate')->andReturn(['choices' => [['message' => ['content' => 'hi']]], 'usage' => ['tokens' => 5]]);
+        $this->app->instance(GorqService::class, $mock);
+
+        $user = \App\Models\User::factory()->create();
+
+        $payload = [
+            'messages' => [
+                ['role' => 'system', 'content' => 'You are a helpful assistant.'],
+                ['role' => 'user', 'content' => 'Say hello'],
+            ],
+            'model' => 'gpt-test',
+        ];
+
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/ai/generate', $payload);
+
+        $response->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertDatabaseCount('ai_requests', 1);
+        $ai = AiRequest::first();
+        $this->assertEquals('finished', $ai->status);
+        $this->assertNotNull($ai->result);
+        $this->assertIsArray($ai->meta);
+        $this->assertArrayHasKey('messages', $ai->meta);
+    }
 }

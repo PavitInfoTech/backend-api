@@ -16,10 +16,25 @@ class GorqService
         }
 
         $response = Http::withToken($apiKey)
-            ->post(rtrim($base, '/') . '/v1/generate', $payload);
+            ->post(rtrim($base, '/'), $payload);
 
         if (! $response->successful()) {
-            return ['error' => 'Gorq request failed', 'details' => $response->body()];
+            $status = $response->status();
+            $body = $response->body();
+            $json = null;
+            try {
+                $json = $response->json();
+            } catch (\Throwable $e) {
+                // ignore json parse errors
+            }
+
+            return [
+                'error' => 'Gorq request failed',
+                'status' => $status,
+                'body' => $body,
+                'json' => $json,
+                'URL' => $base,
+            ];
         }
 
         return $response->json();

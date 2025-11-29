@@ -6,6 +6,7 @@ use App\Services\GorqService;
 use App\Models\AiRequest;
 use App\Jobs\ProcessAiRequest;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 
 class AIController extends ApiController
@@ -20,14 +21,39 @@ class AIController extends ApiController
     public function generate(Request $request)
     {
         $validated = $request->validate([
-            'prompt' => 'required|string|max:5000',
+            'prompt' => 'required_without:messages|string|max:5000',
+            'messages' => 'required_without:prompt|array',
+            'messages.*.role' => 'sometimes|string',
+            'messages.*.content' => 'sometimes',
             'model' => 'sometimes|string|max:255',
             'max_tokens' => 'sometimes|integer|min:1|max:2048',
             'async' => 'sometimes|boolean',
         ]);
 
-        // Basic sanitization: strip control characters
-        $prompt = preg_replace('/[\x00-\x1F\x7F]/u', '', $validated['prompt']);
+        // Basic sanitization: handle prompt or messages
+        $prompt = null;
+        $messages = null;
+        if (! empty($validated['messages'])) {
+            $messages = $validated['messages'];
+            foreach ($messages as $i => $m) {
+                $content = $m['content'] ?? '';
+                if (is_array($content)) {
+                    // join array to string
+                    $content = implode("\n", $content);
+                }
+                $content = preg_replace('/[\x00-\x1F\x7F]/u', '', $content);
+                $messages[$i]['content'] = $content;
+            }
+            // If first message is user, set prompt for DB convenience
+            $firstUser = collect($messages)->firstWhere('role', 'user');
+            $prompt = $firstUser['content'] ?? (string) ($messages[0]['content'] ?? '');
+        } else {
+            $raw = $validated['prompt'] ?? $request->input('prompt') ?? '';
+            $prompt = preg_replace('/[\x00-\x1F\x7F]/u', '', $raw);
+            $messages = [
+                ['role' => 'user', 'content' => $prompt],
+            ];
+        }
 
         // Create an AiRequest log entry
         $aiRequest = AiRequest::create([
@@ -35,7 +61,10 @@ class AIController extends ApiController
             'model' => $validated['model'] ?? env('GORQ_DEFAULT_MODEL'),
             'prompt' => $prompt,
             'status' => 'pending',
-            'meta' => ['max_tokens' => $validated['max_tokens'] ?? 256],
+            'meta' => [
+                'max_tokens' => $validated['max_tokens'] ?? 256,
+                'messages' => $messages,
+            ],
         ]);
 
         // If client asked for async processing, dispatch a job and return job-id
@@ -64,7 +93,7 @@ class AIController extends ApiController
 
         // Synchronous processing: call Gorq and store result
         $payload = [
-            'prompt' => $prompt,
+            'messages' => $aiRequest->meta['messages'] ?? [['role' => 'user', 'content' => $aiRequest->prompt]],
             'model' => $aiRequest->model,
             'max_tokens' => $aiRequest->meta['max_tokens'] ?? 256,
         ];
@@ -75,16 +104,28 @@ class AIController extends ApiController
 
         if (isset($result['error'])) {
             $aiRequest->update(['status' => 'failed', 'error' => json_encode($result)]);
-            $errors = $result['error'] ?? $result;
-            // Ensure $errors is an array or null to match ApiController::error signature
-            if (! is_array($errors)) {
-                $errors = ['message' => (string) $errors];
-            }
+
+            // Build a structured error response with the original payload and Gorq response
+            $gorqResponse = [
+                'status' => $result['status'] ?? null,
+                'body' => $result['body'] ?? null,
+                'json' => $result['json'] ?? null,
+            ];
+
+            $errors = is_array($result) ? $result : ['message' => (string) ($result['error'] ?? $result)];
+            $errors['payload'] = $payload;
+            $errors['gorq_response'] = $gorqResponse;
+
+            // Log error for debugging
+            Log::error('AI provider error', ['message' => $result['error'] ?? 'Unknown', 'gorq' => $gorqResponse]);
+
             return $this->error('AI provider error', 500, $errors);
         }
 
-        // store result and mark finished
-        $aiRequest->update(['status' => 'finished', 'result' => json_encode($result), 'meta' => $result]);
+        // store result and mark finished; append gorq response into meta rather than overwrite
+        $newMeta = is_array($aiRequest->meta) ? $aiRequest->meta : [];
+        $newMeta['gorq_response'] = $result;
+        $aiRequest->update(['status' => 'finished', 'result' => json_encode($result), 'meta' => $newMeta]);
 
         return $this->success($result, 'AI generation result');
     }
