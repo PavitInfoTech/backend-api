@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -41,6 +42,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // API fallback — return structured JSON for unmatched API routes
     Route::fallback(function () {
+        Log::info('API fallback triggered', ['uri' => request()->path()]);
         return response()->json([
             'status' => 'error',
             'message' => 'Route not found',
@@ -75,6 +77,10 @@ Route::post('/auth/password/reset', [\App\Http\Controllers\Api\AuthController::c
 Route::post('/auth/verify/send', [\App\Http\Controllers\Api\AuthController::class, 'sendVerification']);
 Route::get('/auth/verify/{token}', [\App\Http\Controllers\Api\AuthController::class, 'verifyEmail']);
 
+// OAuth API-based token exchanges
+Route::post('/auth/google/token', [\App\Http\Controllers\Api\AuthController::class, 'googleTokenLogin']);
+Route::post('/auth/github/token', [\App\Http\Controllers\Api\AuthController::class, 'githubTokenLogin']);
+
 // OAuth
 Route::get('/auth/google/redirect', [\App\Http\Controllers\Api\AuthController::class, 'redirectToGoogle']);
 Route::get('/auth/google/callback', [\App\Http\Controllers\Api\AuthController::class, 'handleGoogleCallback']);
@@ -85,3 +91,17 @@ Route::get('/auth/github/callback', [\App\Http\Controllers\Api\AuthController::c
 Route::post('/mail/contact', [\App\Http\Controllers\Api\MailController::class, 'contact']);
 Route::post('/mail/newsletter', [\App\Http\Controllers\Api\MailController::class, 'newsletter']);
 Route::post('/mail/password-reset', [\App\Http\Controllers\Api\MailController::class, 'passwordReset']);
+
+// Dev tools: run migrations via HTTP POST. Use X-RUN-MIG-TOKEN header (env RUN_MIG_TOKEN) and set ALLOW_RUN_MIG=true in .env.
+Route::post('/admin/migrate', [\App\Http\Controllers\Api\DevToolsController::class, 'runMigration'])->middleware('throttle:10,1');
+
+// API fallback — return structured JSON for unmatched API routes
+Route::fallback(function () {
+    return response()->json([
+        'status' => 'error',
+        'message' => 'Route not found',
+        'errors' => null,
+        'code' => 404,
+        'timestamp' => now()->toIso8601String(),
+    ], 404);
+});

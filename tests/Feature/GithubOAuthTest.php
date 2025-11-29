@@ -20,6 +20,8 @@ class GithubOAuthTest extends TestCase
         $social->shouldReceive('getName')->andReturn('Github Test');
         $social->shouldReceive('getEmail')->andReturn('github@example.com');
         $social->shouldReceive('getAvatar')->andReturn('https://avatar.example.com/1.png');
+        $social->shouldReceive('getNickname')->andReturn('githubuser');
+        $social->user = ['given_name' => 'Github', 'family_name' => 'Test'];
 
         $provider = Mockery::mock('Laravel\Socialite\Contracts\Provider');
         $provider->shouldReceive('user')->andReturn($social);
@@ -42,6 +44,8 @@ class GithubOAuthTest extends TestCase
         $social->shouldReceive('getName')->andReturn('Existing Github');
         $social->shouldReceive('getEmail')->andReturn('existing@example.com');
         $social->shouldReceive('getAvatar')->andReturn('https://avatar.example.com/2.png');
+        $social->shouldReceive('getNickname')->andReturn('existinggithub');
+        $social->user = ['given_name' => 'Existing', 'family_name' => 'Github'];
 
         $provider = Mockery::mock('Laravel\Socialite\Contracts\Provider');
         $provider->shouldReceive('user')->andReturn($social);
@@ -65,6 +69,8 @@ class GithubOAuthTest extends TestCase
         $social->shouldReceive('getName')->andReturn('Browser User');
         $social->shouldReceive('getEmail')->andReturn('browser@example.com');
         $social->shouldReceive('getAvatar')->andReturn('https://avatar.example.com/3.png');
+        $social->shouldReceive('getNickname')->andReturn('browseruser');
+        $social->user = ['given_name' => 'Browser', 'family_name' => 'User'];
 
         $provider = Mockery::mock('Laravel\Socialite\Contracts\Provider');
         $provider->shouldReceive('user')->andReturn($social);

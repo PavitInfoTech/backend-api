@@ -20,6 +20,8 @@ class GoogleOAuthTest extends TestCase
         $social->shouldReceive('getName')->andReturn('Google Test');
         $social->shouldReceive('getEmail')->andReturn('google@example.com');
         $social->shouldReceive('getAvatar')->andReturn('https://avatar.example.com/1.png');
+        $social->shouldReceive('getNickname')->andReturn('googleuser');
+        $social->user = ['given_name' => 'Google', 'family_name' => 'Test'];
 
         $provider = Mockery::mock('Laravel\Socialite\Contracts\Provider');
         $provider->shouldReceive('user')->andReturn($social);
@@ -42,6 +44,8 @@ class GoogleOAuthTest extends TestCase
         $social->shouldReceive('getName')->andReturn('Existing Google');
         $social->shouldReceive('getEmail')->andReturn('existing@example.com');
         $social->shouldReceive('getAvatar')->andReturn('https://avatar.example.com/2.png');
+        $social->shouldReceive('getNickname')->andReturn('existinggoogle');
+        $social->user = ['given_name' => 'Existing', 'family_name' => 'Google'];
 
         $provider = Mockery::mock('Laravel\Socialite\Contracts\Provider');
         $provider->shouldReceive('user')->andReturn($social);
@@ -65,6 +69,8 @@ class GoogleOAuthTest extends TestCase
         $social->shouldReceive('getName')->andReturn('Browser User');
         $social->shouldReceive('getEmail')->andReturn('browser@example.com');
         $social->shouldReceive('getAvatar')->andReturn('https://avatar.example.com/3.png');
+        $social->shouldReceive('getNickname')->andReturn('browseruser');
+        $social->user = ['given_name' => 'Browser', 'family_name' => 'User'];
 
         $provider = Mockery::mock('Laravel\Socialite\Contracts\Provider');
         $provider->shouldReceive('user')->andReturn($social);

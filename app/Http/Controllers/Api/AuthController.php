@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Cookie as CookieFacade;
+use Illuminate\Support\Facades\Http;
+use Laravel\Socialite\Contracts\User as SocialiteUserContract;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\PasswordResetMail;
@@ -195,66 +197,10 @@ class AuthController extends ApiController
             return $this->error('Failed to get user from GitHub', 400, ['error' => $e->getMessage()]);
         }
 
-        $provider = 'github';
-        $providerId = $social->getId();
-        $email = $social->getEmail();
-        $name = $social->getName() ?? $social->getNickname() ?? $email;
-        $avatar = $social->getAvatar();
+        $profile = $this->buildProfileFromSocialiteUser($social, 'github');
+        $user = $this->findOrCreateSocialUser('github', $profile);
 
-        $user = User::where('provider_name', $provider)->where('provider_id', $providerId)->first();
-
-        if (! $user && $email) {
-            $user = User::where('email', $email)->first();
-        }
-
-        if (! $user) {
-            $parts = preg_split('/\s+/', trim($name));
-            $firstName = $parts[0] ?? null;
-            $lastName = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : null;
-
-            $preferredUsername = $email ? explode('@', $email)[0] : Str::slug($name);
-            $base =
-                $preferredUsername ? Str::slug($preferredUsername) : Str::slug($firstName . '-' . ($lastName ?? ''));
-            $username = $base;
-            $i = 0;
-            while (User::where('username', $username)->exists()) {
-                $i++;
-                $username = $base . $i;
-            }
-
-            $user = User::create([
-                'username' => $username,
-                'first_name' => $firstName,
-                'last_name' => $lastName,
-                'email' => $email,
-                'password' => Hash::make(Str::random(24)),
-                'provider_name' => $provider,
-                'provider_id' => $providerId,
-                'avatar' => $avatar,
-            ]);
-        } else {
-            $user->provider_name = $user->provider_name ?? $provider;
-            $user->provider_id = $user->provider_id ?? $providerId;
-            $user->avatar = $avatar ?? $user->avatar;
-            $user->save();
-        }
-
-        $token = $user->createToken('github')->plainTextToken;
-
-        if ($request->wantsJson() || $request->accepts('application/json')) {
-            return $this->success(['user' => $user, 'token' => $token], 'Authenticated via GitHub');
-        }
-
-        $minutes = (int) env('SANCTUM_COOKIE_TTL', 60 * 24 * 30);
-        $frontend = rtrim(config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:3000')), '/');
-        $redirectTo = $frontend . '/auth/complete';
-
-        $secure = ! app()->environment('local');
-        $sameSite = 'Lax';
-
-        $cookie = cookie('api_token', $token, $minutes, '/', null, $secure, true, false, $sameSite);
-
-        return redirect($redirectTo)->withCookie($cookie);
+        return $this->respondAfterSocialLogin($request, $user, 'github');
     }
 
     public function unlinkProvider(Request $request)
@@ -285,73 +231,71 @@ class AuthController extends ApiController
             return $this->error('Failed to get user from Google', 400, ['error' => $e->getMessage()]);
         }
 
-        $provider = 'google';
-        $providerId = $social->getId();
-        $email = $social->getEmail();
-        $name = $social->getName() ?? $social->getNickname() ?? $email;
-        $avatar = $social->getAvatar();
+        $profile = $this->buildProfileFromSocialiteUser($social, 'google');
+        $user = $this->findOrCreateSocialUser('google', $profile);
 
-        // Try to find existing user by provider id
-        $user = User::where('provider_name', $provider)->where('provider_id', $providerId)->first();
+        return $this->respondAfterSocialLogin($request, $user, 'google');
+    }
 
-        if (! $user && $email) {
-            // Try find by email and attach provider info
-            $user = User::where('email', $email)->first();
-        }
+    public function googleTokenLogin(Request $request)
+    {
+        $payload = $request->validate([
+            'code' => 'required_without:credential|string',
+            'credential' => 'required_without:code|string',
+            'redirect_uri' => 'sometimes|url',
+        ]);
 
-        if (! $user) {
-            // create user with a random password (not used for OAuth)
-            $parts = preg_split('/\s+/', trim($name));
-            $firstName = $parts[0] ?? null;
-            $lastName = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : null;
-
-            $preferredUsername = $email ? explode('@', $email)[0] : Str::slug($name);
-            $base =
-                $preferredUsername ? Str::slug($preferredUsername) : Str::slug($firstName . '-' . ($lastName ?? ''));
-            $username = $base;
-            $i = 0;
-            while (User::where('username', $username)->exists()) {
-                $i++;
-                $username = $base . $i;
+        try {
+            if (! empty($payload['code'])) {
+                $tokenResponse = $this->exchangeGoogleCode($payload['code'], $payload['redirect_uri'] ?? null);
+                $accessToken = $tokenResponse['access_token'] ?? null;
+                if (! $accessToken) {
+                    throw new \RuntimeException('Google token response missing access_token');
+                }
+                /** @var \Laravel\Socialite\Two\GoogleProvider $googleDriver */
+                $googleDriver = Socialite::driver('google');
+                $social = $googleDriver->userFromToken($accessToken);
+                $profile = $this->buildProfileFromSocialiteUser($social, 'google');
+            } else {
+                $profile = $this->profileFromGoogleIdToken($payload['credential']);
             }
 
-            $user = User::create([
-                'username' => $username,
-                'first_name' => $firstName,
-                'last_name' => $lastName,
-                'email' => $email,
-                'password' => Hash::make(Str::random(24)),
-                'provider_name' => $provider,
-                'provider_id' => $providerId,
-                'avatar' => $avatar,
-            ]);
-        } else {
-            // update provider fields if missing
-            $user->provider_name = $user->provider_name ?? $provider;
-            $user->provider_id = $user->provider_id ?? $providerId;
-            $user->avatar = $avatar ?? $user->avatar;
-            $user->save();
+            $user = $this->findOrCreateSocialUser('google', $profile);
+            return $this->respondAfterSocialLogin($request, $user, 'google', true);
+        } catch (\Throwable $e) {
+            return $this->error('Google authentication failed', 400, ['error' => $e->getMessage()]);
         }
+    }
 
-        $token = $user->createToken('google')->plainTextToken;
+    public function githubTokenLogin(Request $request)
+    {
+        $payload = $request->validate([
+            'code' => 'required_without:access_token|string',
+            'access_token' => 'required_without:code|string',
+            'redirect_uri' => 'sometimes|url',
+        ]);
 
-        // If the caller expects JSON (API client), return token in JSON.
-        if ($request->wantsJson() || $request->accepts('application/json')) {
-            return $this->success(['user' => $user, 'token' => $token], 'Authenticated via Google');
+        try {
+            if (! empty($payload['code'])) {
+                $token = $this->exchangeGithubCode($payload['code'], $payload['redirect_uri'] ?? null);
+            } else {
+                $token = $payload['access_token'];
+            }
+
+            if (! $token) {
+                throw new \RuntimeException('GitHub access token missing');
+            }
+
+            /** @var \Laravel\Socialite\Two\GitHubProvider $githubDriver */
+            $githubDriver = Socialite::driver('github');
+            $social = $githubDriver->userFromToken($token);
+            $profile = $this->buildProfileFromSocialiteUser($social, 'github');
+            $user = $this->findOrCreateSocialUser('github', $profile);
+
+            return $this->respondAfterSocialLogin($request, $user, 'github', true);
+        } catch (\Throwable $e) {
+            return $this->error('GitHub authentication failed', 400, ['error' => $e->getMessage()]);
         }
-
-        // Otherwise assume web/browser flow: set a secure, HttpOnly cookie and redirect to the SPA so the token
-        // never appears in the URL. Cookie life in minutes (default 30 days): SANCTUM_COOKIE_TTL
-        $minutes = (int) env('SANCTUM_COOKIE_TTL', 60 * 24 * 30);
-        $frontend = rtrim(config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:3000')), '/');
-        $redirectTo = $frontend . '/auth/complete';
-
-        $secure = ! app()->environment('local');
-        $sameSite = 'Lax';
-
-        $cookie = cookie('api_token', $token, $minutes, '/', null, $secure, true, false, $sameSite);
-
-        return redirect($redirectTo)->withCookie($cookie);
     }
 
     /**
@@ -499,5 +443,168 @@ class AuthController extends ApiController
         }
 
         return $this->success(['user' => $user], 'Email verified');
+    }
+
+    protected function buildProfileFromSocialiteUser(SocialiteUserContract $social, string $provider): array
+    {
+        $name = $social->getName() ?? $social->getNickname() ?? $social->getEmail() ?? $provider . '-' . Str::random(6);
+
+        return [
+            'id' => $social->getId(),
+            'email' => $social->getEmail(),
+            'name' => $name,
+            'first_name' => $social->user['given_name'] ?? null,
+            'last_name' => $social->user['family_name'] ?? null,
+            'username' => $social->getNickname(),
+            'avatar' => $social->getAvatar(),
+        ];
+    }
+
+    protected function profileFromGoogleIdToken(string $credential): array
+    {
+        $response = Http::get('https://oauth2.googleapis.com/tokeninfo', ['id_token' => $credential]);
+        if ($response->failed()) {
+            throw new \RuntimeException('Invalid Google credential');
+        }
+
+        $data = $response->json();
+
+        return [
+            'id' => $data['sub'] ?? null,
+            'email' => $data['email'] ?? null,
+            'name' => $data['name'] ?? trim(($data['given_name'] ?? '') . ' ' . ($data['family_name'] ?? '')),
+            'first_name' => $data['given_name'] ?? null,
+            'last_name' => $data['family_name'] ?? null,
+            'avatar' => $data['picture'] ?? null,
+            'username' => $data['preferred_username'] ?? ($data['email'] ?? null),
+        ];
+    }
+
+    protected function findOrCreateSocialUser(string $provider, array $profile): User
+    {
+        $providerId = $profile['id'] ?? null;
+        $email = $profile['email'] ?? null;
+        $name = $profile['name'] ?? ($email ?? ($provider . '-' . Str::random(6)));
+        $firstName = $profile['first_name'] ?? null;
+        $lastName = $profile['last_name'] ?? null;
+
+        if (! $firstName || ! $lastName) {
+            $parts = preg_split('/\s+/', trim((string) $name));
+            $firstName = $firstName ?? ($parts[0] ?? null);
+            $lastName = $lastName ?? (count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : null);
+        }
+
+        $user = null;
+        if ($providerId) {
+            $user = User::where('provider_name', $provider)->where('provider_id', $providerId)->first();
+        }
+
+        if (! $user && $email) {
+            $user = User::where('email', $email)->first();
+        }
+
+        if (! $user) {
+            $preferredUsername = $profile['username'] ?? ($email ? explode('@', $email)[0] : Str::slug($name));
+            $base = $preferredUsername ? Str::slug($preferredUsername) : Str::slug(($firstName ?? 'user') . '-' . ($lastName ?? Str::random(4)));
+            $base = $base ?: 'user-' . Str::random(4);
+            $username = $base;
+            $i = 0;
+            while (User::where('username', $username)->exists()) {
+                $i++;
+                $username = $base . $i;
+            }
+
+            $user = User::create([
+                'username' => $username,
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'email' => $email,
+                'password' => Hash::make(Str::random(24)),
+                'provider_name' => $provider,
+                'provider_id' => $providerId,
+                'avatar' => $profile['avatar'] ?? null,
+            ]);
+        } else {
+            if (! $user->provider_name) {
+                $user->provider_name = $provider;
+            }
+            if (! $user->provider_id && $providerId) {
+                $user->provider_id = $providerId;
+            }
+            if (! empty($profile['avatar'])) {
+                $user->avatar = $profile['avatar'];
+            }
+            $user->save();
+        }
+
+        return $user;
+    }
+
+    protected function respondAfterSocialLogin(Request $request, User $user, string $provider, bool $forceJson = false)
+    {
+        $token = $user->createToken($provider)->plainTextToken;
+        $message = 'Authenticated via ' . ucfirst($provider);
+
+        if ($forceJson || $this->expectsJsonResponse($request)) {
+            return $this->success(['user' => $user, 'token' => $token], $message);
+        }
+
+        return $this->cookieRedirectResponse($token);
+    }
+
+    protected function cookieRedirectResponse(string $token)
+    {
+        $minutes = (int) env('SANCTUM_COOKIE_TTL', 60 * 24 * 30);
+        $frontend = rtrim(config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:3000')), '/');
+        $redirectTo = $frontend . '/auth/complete';
+
+        $secure = ! app()->environment('local');
+        $sameSite = 'Lax';
+
+        $cookie = cookie('api_token', $token, $minutes, '/', null, $secure, true, false, $sameSite);
+
+        return redirect($redirectTo)->withCookie($cookie);
+    }
+
+    protected function expectsJsonResponse(Request $request): bool
+    {
+        return $request->wantsJson() || $request->accepts('application/json');
+    }
+
+    protected function exchangeGoogleCode(string $code, ?string $redirectUri = null): array
+    {
+        $response = Http::asForm()->post('https://oauth2.googleapis.com/token', [
+            'code' => $code,
+            'client_id' => config('services.google.client_id'),
+            'client_secret' => config('services.google.client_secret'),
+            'redirect_uri' => $redirectUri ?? config('services.google.redirect'),
+            'grant_type' => 'authorization_code',
+        ]);
+
+        if ($response->failed()) {
+            throw new \RuntimeException('Google token exchange failed');
+        }
+
+        return $response->json();
+    }
+
+    protected function exchangeGithubCode(string $code, ?string $redirectUri = null): ?string
+    {
+        $response = Http::asForm()
+            ->withHeaders(['Accept' => 'application/json'])
+            ->post('https://github.com/login/oauth/access_token', [
+                'code' => $code,
+                'client_id' => config('services.github.client_id'),
+                'client_secret' => config('services.github.client_secret'),
+                'redirect_uri' => $redirectUri ?? config('services.github.redirect'),
+            ]);
+
+        if ($response->failed()) {
+            throw new \RuntimeException('GitHub token exchange failed');
+        }
+
+        $data = $response->json();
+
+        return $data['access_token'] ?? null;
     }
 }

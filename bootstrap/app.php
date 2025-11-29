@@ -16,11 +16,16 @@ return Application::configure(basePath: dirname(__DIR__))
             // /api prefix so developers can call routes via the /api prefix even when the app
             // uses a subdomain in production (e.g., `api.example.com` -> `/auth/login`).
             $apiDomain = env('API_DOMAIN');
-            if (!empty($apiDomain)) {
+            $shouldFallbackToPrefix = app()->environment(['local', 'testing'])
+                || app()->runningUnitTests()
+                || (app()->runningInConsole() && app()->environment('testing'))
+                || filter_var(env('API_PREFIX_FALLBACK', false), FILTER_VALIDATE_BOOLEAN);
+
+            if (! empty($apiDomain)) {
                 \Illuminate\Support\Facades\Route::middleware('api')->domain($apiDomain)->group($api);
 
-                // Enable /api prefix fallback when running locally or when explicitly requested
-                if (app()->environment('local') || env('API_PREFIX_FALLBACK', false)) {
+                // Enable /api prefix fallback in local/testing/unit-test contexts or when explicitly requested.
+                if ($shouldFallbackToPrefix) {
                     \Illuminate\Support\Facades\Route::middleware('api')->prefix('api')->group($api);
                 }
             } else {
