@@ -38,7 +38,6 @@ These variables were added to `.env.example` and must be configured in your `.en
 -   GORQ_API_KEY — API key for Gorq (or your AI provider)
 -   GORQ_BASE_URL — Base URL for Gorq API (default `https://api.gorq.ai`)
 -   GORQ_DEFAULT_MODEL — Optional default model to use
--   GOOGLE_MAPS_API_KEY — Google Maps API key (for static map pins)
 -   FRONTEND_URL — Frontend SPA address for CORS/callbacks
 -   SANCTUM_STATEFUL_DOMAINS — If using Sanctum for SPA auth
 
@@ -101,7 +100,7 @@ For a full guide on configuring Google Cloud credentials, Socialite server usage
 -   **Email verification** — `POST /auth/verify/send` issues tokens; `GET /auth/verify/{token}` validates them and either returns JSON or redirects to the SPA.
 -   **Password reset** — `POST /auth/password/forgot` creates reset tokens and emails users; `POST /auth/password/reset` validates the token and updates the stored password hash.
 -   **Social linking** — Authenticated users can link/unlink Google/GitHub providers via `/auth/link/...` and `/auth/unlink` so future logins can use OAuth.
--   **Profile & session hygiene** — Protected endpoints (e.g., `/user`, `/ai/generate`) require the Bearer token or the secure `api_token` cookie returned by the OAuth callbacks.
+-   **Profile & session hygiene** — Protected endpoints (e.g., `/user`) require the Bearer token or the secure `api_token` cookie returned by the OAuth callbacks.
 
 > **⚠️ IMPORTANT: Password Hashing Requirement**
 >
@@ -457,7 +456,7 @@ Notes: run `php artisan storage:link` in deployment to make `storage/app/public`
 
 ### AI / Gorq
 
--   POST /api/ai/generate (or POST /ai/generate if `API_DOMAIN` is set)
+-   POST /api/ai/generate (or POST /ai/generate if `API_DOMAIN` is set) — Public endpoint
 -   POST /api/ai/generate
 
     -   Body: { prompt: string (required), model?: string, max_tokens?: integer, async?: boolean }
@@ -469,7 +468,7 @@ Notes: run `php artisan storage:link` in deployment to make `storage/app/public`
     -   Action: Validates and sanitizes prompt input, logs the request (ai_requests table) and either:
         -   Synchronous (default): forwards the request to the configured GORQ service (via `GORQ_API_KEY`) and returns provider result. The `ai_requests` record is updated with status and result.
         -   Async (async=true): creates an `ai_requests` record (status `pending`) and dispatches a queued job to process the request. Responds 202 Accepted with `job_id` and `status_url` to poll.
-    -   Rate limiting: protected by `throttle:ai` rate limiter (per-user or by IP). Configure with `AI_RATE_LIMIT_PER_MINUTE` (default 60/min).
+    -   Rate limiting: protected by `throttle:ai` rate limiter (per IP). Configure with `AI_RATE_LIMIT_PER_MINUTE` (default 60/min).
     -   Example successful sync response: { status: 'success', data: { ... } }
     -   Example async accepted response (202 Accepted):
 
@@ -485,52 +484,53 @@ Content-Type: application/json
 ```
 
     -   Errors & failure modes:
-        - 401 Unauthenticated — needs Bearer token or valid cookie
+        - 401 Unauthenticated — (not used) endpoint is public; some UI may prefer authenticated usage for billing/audit
         - 422 Validation failed — missing prompt or invalid params
         - 429 Too Many Requests — rate limiter triggered (AI rate limiter `throttle:ai`)
         - 500 Server Error — AI provider failure or internal error
 
--   GET /api/ai/jobs/{id}/status (or GET /ai/jobs/{id}/status if `API_DOMAIN` is set)
+    -   GET /api/ai/jobs/{id}/status (or GET /ai/jobs/{id}/status if `API_DOMAIN` is set) — Public
     -   Returns the job status and result (or error) for async requests:
     -   Response (200): { status: 'success', data: { id, status, result?, error?, meta?, created_at, updated_at } }
 
-### Google Maps / Embed & Link
+### Google Maps Embed
 
 -   POST /api/maps/pin (or POST /maps/pin if `API_DOMAIN` is set)
 
     -   Public: does not require authentication (no Bearer token needed)
+    -   No API key required — uses Google Maps embed URL format
 
-    -   Body: { address: string (required), zoom?: integer, width?: integer, height?: integer, map_type?: string }
+    -   Body: { address: string (required), zoom?: integer, width?: integer, height?: integer }
     -   Validation rules:
         -   `address` => required|string|max:500
-        -   `zoom` => sometimes|integer|min:0|max:21 (default: 15)
+        -   `zoom` => sometimes|integer|min:1|max:21 (default: 15)
         -   `width` => sometimes|integer|min:1|max:2048 (default: 600, for iframe)
         -   `height` => sometimes|integer|min:1|max:2048 (default: 450, for iframe)
-        -   `map_type` => sometimes|string|in:roadmap,satellite (default: roadmap)
-    -   Action: Returns Google Maps URLs for the given address. Uses the Google Maps Embed API (requires Maps JavaScript API key with Embed API enabled).
+    -   Action: Returns Google Maps URLs for embedding and linking. No API key required.
     -   Response structure:
         ```json
         {
             "status": "success",
-            "message": "Google Maps URLs generated",
+            "message": "Map URLs generated",
             "data": {
-                "embed_url": "https://www.google.com/maps/embed/v1/place?key=...&q=...",
+                "embed_url": "https://maps.google.com/maps?q=...&z=15&output=embed",
                 "maps_link": "https://www.google.com/maps/search/?api=1&query=...",
-                "iframe": "<iframe width=\"600\" height=\"450\" ... src=\"...\"></iframe>",
-                "address": "1600 Amphitheatre Parkway, Mountain View, CA"
+                "iframe": "<iframe width=\"600\" height=\"450\" src=\"...\"></iframe>",
+                "address": "1600 Amphitheatre Parkway, Mountain View, CA",
+                "zoom": 15
             },
             "code": 200,
             "timestamp": "2025-11-29T12:00:00Z"
         }
         ```
     -   Response fields:
-        -   `embed_url` — URL for use in an iframe `src` attribute (Google Maps Embed API)
-        -   `maps_link` — Direct link to Google Maps that opens in browser or mobile app
-        -   `iframe` — Ready-to-use HTML iframe element with the embed URL
+        -   `embed_url` — URL for use in an iframe `src` attribute (no API key needed)
+        -   `maps_link` — Direct link to Google Maps (opens in browser/app)
+        -   `iframe` — Ready-to-use HTML iframe element
         -   `address` — The original address provided
+        -   `zoom` — The zoom level used
     -   Errors & failure modes:
         -   422 Validation failed — missing or invalid address/fields
-        -   500 Server Error — missing `GOOGLE_MAPS_API_KEY` environment variable
 
 ### Ping / health check
 
@@ -546,7 +546,7 @@ When requests fail, the API returns a consistent JSON error structure with an ap
 -   `code` — the HTTP status code returned (e.g., `401`, `422`, `404`, `500`).
 -   `timestamp` — ISO 8601 timestamp when the response was generated.
 
-**Authentication errors (401):** Protected routes (e.g., `GET /user`, `POST /ai/generate`) require a valid Bearer token. If you access these routes without a token or with an expired/invalid token, the API returns a 401 JSON response — it will **never** redirect to a login page. Your frontend should handle 401 responses by prompting the user to log in.
+**Authentication errors (401):** Protected routes (e.g., `GET /user`) require a valid Bearer token. If you access these routes without a token or with an expired/invalid token, the API returns a 401 JSON response — it will **never** redirect to a login page. Your frontend should handle 401 responses by prompting the user to log in.
 
 Example 401 (Unauthenticated):
 

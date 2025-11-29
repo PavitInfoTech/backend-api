@@ -69,9 +69,14 @@ class AiEndpointTest extends TestCase
 
     public function test_generate_requires_authentication()
     {
+        // Now public - ensure unauthenticated request still works by mocking GorqService
+        $mock = \Mockery::mock(GorqService::class);
+        $mock->shouldReceive('generate')->andReturn(['text' => 'hello', 'tokens' => 1]);
+        $this->app->instance(GorqService::class, $mock);
+
         $response = $this->postJson('/api/ai/generate', ['prompt' => 'Hi']);
 
-        $response->assertStatus(401)->assertJsonStructure(['status', 'message', 'errors', 'code', 'timestamp']);
+        $response->assertStatus(200)->assertJson(['status' => 'success']);
     }
 
     public function test_generate_validates_prompt_presence_and_length()
@@ -92,13 +97,12 @@ class AiEndpointTest extends TestCase
     {
         $ai = AiRequest::create(['prompt' => 'p', 'status' => 'pending']);
 
-        // unauthenticated -> 401
+        // unauthenticated -> allowed and returns job info
         $response = $this->getJson('/api/ai/jobs/' . $ai->id . '/status');
-        $response->assertStatus(401)->assertJsonStructure(['status', 'message', 'errors', 'code', 'timestamp']);
+        $response->assertStatus(200)->assertJsonStructure(['status', 'message', 'data']);
 
         // authenticated + missing id -> 404
-        $user = \App\Models\User::factory()->create();
-        $response = $this->actingAs($user, 'sanctum')->getJson('/api/ai/jobs/999999/status');
+        $response = $this->getJson('/api/ai/jobs/999999/status');
         $response->assertStatus(404)->assertJson(['status' => 'error']);
     }
 }

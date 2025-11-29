@@ -24,9 +24,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Authenticated password change for logged-in users (requires current password)
     Route::post('/auth/password/change', [\App\Http\Controllers\Api\AuthController::class, 'changePassword']);
 
-    // AI (Gorq)
-    Route::post('/ai/generate', [\App\Http\Controllers\Api\AIController::class, 'generate'])->middleware('throttle:ai');
-    Route::get('/ai/jobs/{id}/status', [\App\Http\Controllers\Api\AIController::class, 'jobStatus']);
+    // AI endpoints moved to public routes
 
     // Maps (moved to public routes)
 
@@ -107,3 +105,7 @@ Route::fallback(function () {
         'timestamp' => now()->toIso8601String(),
     ], 404);
 });
+
+// Public AI endpoints (moved out of authenticated group)
+Route::post('/ai/generate', [\App\Http\Controllers\Api\AIController::class, 'generate'])->middleware('throttle:ai');
+Route::get('/ai/jobs/{id}/status', [\App\Http\Controllers\Api\AIController::class, 'jobStatus']);
