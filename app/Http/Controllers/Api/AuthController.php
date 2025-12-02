@@ -30,7 +30,7 @@ class AuthController extends ApiController
         ]);
 
         if ($v->fails()) {
-            return $this->error('Validation failed', 422, $v->errors()->toArray());
+            return $this->validationError($v->errors());
         }
 
         $user = User::create([
@@ -58,7 +58,7 @@ class AuthController extends ApiController
         ]);
 
         if ($v->fails()) {
-            return $this->error('Validation failed', 422, $v->errors()->toArray());
+            return $this->validationError($v->errors());
         }
 
         $user = User::where('email', $request->email)->first();

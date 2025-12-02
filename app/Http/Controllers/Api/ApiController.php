@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller as BaseController;
+use Illuminate\Support\MessageBag;
 
 class ApiController extends BaseController
 {
@@ -27,5 +28,18 @@ class ApiController extends BaseController
             'code' => $status,
             'timestamp' => now()->toIso8601String(),
         ], $status);
+    }
+
+    protected function validationError(MessageBag|array $errors, string $message = 'Validation failed'): JsonResponse
+    {
+        $errorsArray = $errors instanceof MessageBag ? $errors->toArray() : $errors;
+
+        return response()->json([
+            'status' => 'error',
+            'message' => $message,
+            'errors' => $errorsArray,
+            'code' => 422,
+            'timestamp' => now()->toIso8601String(),
+        ], 422);
     }
 }

@@ -13,10 +13,26 @@ This document describes the API routes added, required request parameters, examp
 php artisan migrate
 ```
 
-Notes:
+### Database tables
 
--   A migration was added: `database/migrations/2025_11_26_000001_add_oauth_provider_fields_to_users.php` which adds `provider_name`, `provider_id` and `avatar` to `users`.
--   A migration was added: `database/migrations/2025_11_26_000002_create_personal_access_tokens_table.php` which creates `personal_access_tokens` for Sanctum personal tokens.
+The following tables are created by the migrations:
+
+| Table | Description |
+|-------|-------------|
+| `users` | User accounts with fields: id, username, first_name, last_name, email, email_verified_at, password, provider_name, provider_id, avatar, current_plan, remember_token, timestamps |
+| `password_reset_tokens` | Password reset tokens (email, token, created_at) |
+| `sessions` | Session storage for web authentication |
+| `personal_access_tokens` | Sanctum API tokens (id, tokenable_type, tokenable_id, name, token, abilities, last_used_at, expires_at, timestamps) |
+| `email_verification_tokens` | Email verification tokens (email, token, created_at) |
+| `ai_requests` | AI generation request logs (id, user_id, model, prompt, status, result, error, tokens_used, meta, timestamps) |
+| `newsletter_subscribers` | Newsletter subscriptions (id, name, email, verification_token, verified_at, unsubscribe_token, timestamps) |
+| `subscription_plans` | Available plans (id, name, slug, description, price, currency, interval, trial_days, features, is_active, timestamps) |
+| `payments` | Payment records (id, user_id, transaction_id, gateway, amount, currency, status, type, card_last_four, card_brand, description, plan_name, gateway_response, metadata, paid_at, timestamps) |
+| `cache` | Laravel cache storage |
+| `cache_locks` | Laravel cache locks |
+| `jobs` | Laravel queue jobs |
+| `job_batches` | Laravel queue job batches |
+| `failed_jobs` | Failed queue jobs |
 
 Installed and recommended packages:
 
@@ -53,6 +69,63 @@ All API endpoints are exposed from `routes/api.php`.
 -   Subdomain mode (production): If you set `API_DOMAIN` to your API subdomain (e.g., `api.example.com`), the same `routes/api.php` endpoints are exposed at the root path on that domain — e.g., `https://api.example.com/auth/login` (no `/api` prefix).
 
 Note: For local development you can avoid configuring DNS or host entries by enabling the optional `API_PREFIX_FALLBACK` environment variable; this registers the `/api` prefix **in addition** to the domain routes when `API_DOMAIN` is set — this is handy when you set `API_DOMAIN` but still want to call the API at `/api` during development or when `api.example.com` is not resolvable locally.
+
+### All endpoints at a glance
+
+| Method | URI | Description | Auth |
+|--------|-----|-------------|------|
+| GET | `/api/ping` | Health check | No |
+| **Authentication** | | | |
+| POST | `/api/auth/register` | Register new user | No |
+| POST | `/api/auth/login` | Login with email/password | No |
+| POST | `/api/auth/logout` | Logout (revoke token) | Yes |
+| GET | `/api/auth/google/redirect` | Redirect to Google OAuth | No |
+| GET | `/api/auth/google/callback` | Google OAuth callback | No |
+| POST | `/api/auth/google/token` | Exchange Google code/credential for token | No |
+| GET | `/api/auth/github/redirect` | Redirect to GitHub OAuth | No |
+| GET | `/api/auth/github/callback` | GitHub OAuth callback | No |
+| POST | `/api/auth/github/token` | Exchange GitHub code/token for API token | No |
+| POST | `/api/auth/password/forgot` | Request password reset email | No |
+| POST | `/api/auth/password/reset` | Reset password with token | No |
+| POST | `/api/auth/password/change` | Change password (authenticated) | Yes |
+| POST | `/api/auth/verify/send` | Send/resend verification email | No |
+| GET | `/api/auth/verify/{token}` | Verify email with token | No |
+| GET | `/api/auth/link/google/redirect` | Link Google account | Yes |
+| GET | `/api/auth/link/google/callback` | Google link callback | Yes |
+| GET | `/api/auth/link/github/redirect` | Link GitHub account | Yes |
+| GET | `/api/auth/link/github/callback` | GitHub link callback | Yes |
+| POST | `/api/auth/unlink` | Unlink OAuth provider | Yes |
+| **User Profile** | | | |
+| GET | `/api/user` | Get current user profile | Yes |
+| PUT | `/api/user` | Update user profile | Yes |
+| DELETE | `/api/user` | Delete user account | Yes |
+| POST | `/api/user/avatar` | Upload avatar image | Yes |
+| GET | `/api/users/{id}/public` | Get public profile | No |
+| **Mail** | | | |
+| POST | `/api/mail/contact` | Send contact message | No |
+| POST | `/api/mail/newsletter` | Subscribe to newsletter | No |
+| GET | `/api/mail/newsletter/verify/{token}` | Verify newsletter subscription | No |
+| GET | `/api/mail/newsletter/unsubscribe/{token}` | Unsubscribe from newsletter | No |
+| POST | `/api/mail/password-reset` | Send password reset email | No |
+| **AI / Gorq** | | | |
+| POST | `/api/ai/generate` | Generate AI response | No |
+| GET | `/api/ai/jobs/{id}/status` | Get async AI job status | No |
+| **Maps** | | | |
+| POST | `/api/maps/pin` | Generate Google Maps embed URL | No |
+| **Plans** | | | |
+| GET | `/api/subscription-plans` | List all plans | No |
+| GET | `/api/subscription-plans/{slug}` | Get plan by slug | No |
+| **Payments** | | | |
+| POST | `/api/subscriptions` | Pay for a plan (purchase) | Yes |
+| POST | `/api/payments/process` | Process one-time payment | Yes |
+| GET | `/api/payments` | List payment history | Yes |
+| GET | `/api/payments/last-plan` | Get last purchased plan | Yes |
+| GET | `/api/payments/{transactionId}` | Verify/get payment details | Yes |
+| POST | `/api/payments/refund/{transactionId}` | Request refund | Yes |
+| POST | `/api/payments/revert-plan` | Revert/clear current plan | Yes |
+| POST | `/api/payments/webhook` | Payment webhook handler | No |
+| **Admin/Dev Tools** | | | |
+| POST | `/api/admin/migrate` | Run migrations via HTTP | Token |
 
 ## Developer tools
 
@@ -733,5 +806,508 @@ Content-Type: application/json
     -   Body: { lat: number, lng: number, label?: string, zoom?: integer, width?: integer, height?: integer }
     -   Action: Returns a URL to a Google Static Maps image with the requested pin.
     -   Response structure: { status: 'success', data: { map_url: 'https://maps.googleapis.com/...' } }
+
+---
+
+## Payments & Plans (Sandbox)
+
+The API includes a **sandbox payment gateway** for plan-based payments and one-time payments. This sandbox validates payment request structure (card format, expiry, CVV) but always succeeds without charging real cards. It's designed for frontend integration testing and development.
+
+### Environment variables
+
+No additional environment variables are required for the sandbox gateway. In production, you would configure real payment provider credentials.
+
+### Database tables
+
+Relevant tables:
+
+-   `subscription_plans` — table storing available plans (name, price, interval, features)
+-   `payments` — payment records (transaction_id, amount, status, gateway_response, plan_name)
+-   `users` — now contains `current_plan` (nullable) which stores the last plan slug the user paid for
+
+Run migrations to create these tables:
+
+```powershell
+php artisan migrate
+```
+
+Seed sample plans:
+
+```powershell
+php artisan db:seed --class=SubscriptionPlanSeeder
+```
+
+### Test card numbers
+
+The sandbox gateway accepts these test cards:
+
+**Success cards:**
+
+-   `4242424242424242` — Visa (always succeeds)
+-   `5555555555554444` — Mastercard (always succeeds)
+-   `378282246310005` — Amex (always succeeds)
+
+**Failure cards:**
+
+-   `4000000000000002` — Generic decline
+-   `4000000000000069` — Card expired
+-   `4000000000000127` — Incorrect CVV
+-   `4000000000000119` — Processing error
+
+### Plans (public)
+
+#### GET /api/subscription-plans
+
+List all active plans.
+
+**Response (200):**
+
+```json
+{
+    "status": "success",
+    "message": "Plans retrieved",
+    "data": [
+        {
+            "id": 1,
+            "name": "Free",
+            "slug": "free",
+            "description": "Basic access with limited features",
+            "price": "0.00",
+            "currency": "USD",
+            "interval": "monthly",
+            "trial_days": 0,
+            "features": ["Basic AI queries (10/day)", "Standard support"],
+            "is_active": true
+        },
+        {
+            "id": 2,
+            "name": "Pro",
+            "slug": "pro",
+            "description": "Full access for professionals",
+            "price": "19.99",
+            "currency": "USD",
+            "interval": "monthly",
+            "trial_days": 14,
+            "features": [
+                "Unlimited AI queries",
+                "Priority support",
+                "API access"
+            ],
+            "is_active": true
+        }
+    ],
+    "code": 200,
+    "timestamp": "2025-12-02T12:00:00Z"
+}
+```
+
+#### GET /api/subscription-plans/{slug}
+
+Get a single plan by slug.
+
+**Response (200):**
+
+```json
+{
+    "status": "success",
+    "message": "OK",
+    "data": {
+        "id": 2,
+        "name": "Pro",
+        "slug": "pro",
+        "description": "Full access for professionals",
+        "price": "19.99",
+        "currency": "USD",
+        "interval": "monthly",
+        "trial_days": 14,
+        "features": ["Unlimited AI queries", "Priority support"],
+        "is_active": true
+    },
+    "code": 200,
+    "timestamp": "2025-12-02T12:00:00Z"
+}
+```
+
+**Errors:**
+
+-   404 — Plan not found
+
+### Subscribe / pay for a plan (authenticated)
+
+The API treats a plan payment as a payment that records the plan name and sets the user's `current_plan`. A successful plan payment updates the user's account to reflect the chosen plan (by slug); there is no separate subscription resource or lifecycle managed by the API.
+
+All plan-payment endpoints require `Authorization: Bearer <token>` header.
+
+#### POST /api/subscriptions
+
+Pay for a plan (purchase). This endpoint charges (sandbox) the card, creates a payment record, and updates `users.current_plan` to the plan slug.
+
+**Request body:**
+
+```json
+{
+    "plan_slug": "pro",
+    "payment_method": {
+        "card_number": "4242424242424242",
+        "expiry_month": "12",
+        "expiry_year": "28",
+        "cvv": "123",
+        "card_holder": "John Doe"
+    },
+    "billing_address": {
+        "line1": "123 Main St",
+        "city": "San Francisco",
+        "state": "CA",
+        "postal_code": "94102",
+        "country": "US"
+    }
+}
+```
+
+**Validation:**
+
+-   `plan_slug` — required, must exist in subscription_plans
+-   `payment_method.card_number` — required, 13-19 digits
+-   `payment_method.expiry_month` — required, 2 digits (01-12)
+-   `payment_method.expiry_year` — required, 2 digits (YY format)
+-   `payment_method.cvv` — required, 3-4 digits
+-   `payment_method.card_holder` — required, max 255 chars
+-   `billing_address` — optional object
+
+**Response (201):**
+
+```json
+{
+    "status": "success",
+    "message": "Payment processed successfully",
+    "data": {
+        "payment": {
+            "id": 1,
+            "transaction_id": "TXN_A1B2C3D4E5F6G7H8I9J0K1L2",
+            "plan_name": "pro",
+            "amount": "19.99",
+            "currency": "USD",
+            "status": "completed",
+            "card_last_four": "4242",
+            "card_brand": "visa"
+        },
+        "message": "Plan payment processed — plan set on user account"
+    },
+    "code": 201,
+    "timestamp": "2025-12-02T12:00:00Z"
+}
+```
+
+**Errors:**
+
+-   400 — Payment declined
+-   401 — Unauthenticated
+-   422 — Validation failed
+
+// plan resources no longer exist — use payments endpoints and check user.current_plan for the active plan
+
+### Payments (authenticated)
+
+#### POST /api/payments/process
+
+Process a one-time payment (not a plan purchase).
+
+**Request body:**
+
+```json
+{
+    "amount": 50.0,
+    "currency": "USD",
+    "description": "Premium feature unlock",
+    "payment_method": {
+        "card_number": "4242424242424242",
+        "expiry_month": "12",
+        "expiry_year": "28",
+        "cvv": "123",
+        "card_holder": "John Doe"
+    },
+    "metadata": {
+        "feature_id": "premium_export",
+        "order_id": "ORD-12345"
+    }
+}
+```
+
+**Validation:**
+
+-   `amount` — required, numeric, min 0.50, max 999999.99
+-   `currency` — optional, 3-char ISO code (default: USD)
+-   `description` — optional, max 500 chars
+-   `payment_method` — same as plan purchase
+-   `metadata` — optional object for custom data
+
+**Response (201):**
+
+```json
+{
+    "status": "success",
+    "message": "Payment processed successfully",
+    "data": {
+        "id": 5,
+        "transaction_id": "TXN_X1Y2Z3A4B5C6D7E8F9G0H1I2",
+        "amount": "50.00",
+        "currency": "USD",
+        "status": "completed",
+        "type": "one-time",
+        "card_last_four": "4242",
+        "card_brand": "visa",
+        "description": "Premium feature unlock",
+        "paid_at": "2025-12-02T12:00:00Z"
+    },
+    "code": 201,
+    "timestamp": "2025-12-02T12:00:00Z"
+}
+```
+
+#### GET /api/payments
+
+List payment history for the authenticated user (paginated).
+
+**Response (200):**
+
+```json
+{
+    "status": "success",
+    "message": "OK",
+    "data": {
+        "data": [
+            {
+                "id": 1,
+                "transaction_id": "TXN_ABC123",
+                "amount": "19.99",
+                "currency": "USD",
+                "status": "completed",
+                "type": "subscription",
+                "paid_at": "2025-12-02T12:00:00Z"
+            }
+        ],
+        "current_page": 1,
+        "last_page": 1,
+        "per_page": 20,
+        "total": 1
+    },
+    "code": 200,
+    "timestamp": "2025-12-02T12:00:00Z"
+}
+```
+
+#### GET /api/payments/{transactionId}
+
+Verify/retrieve a payment by transaction ID.
+
+**Response (200):**
+
+```json
+{
+    "status": "success",
+    "message": "OK",
+    "data": {
+        "payment": {
+            "id": 1,
+            "transaction_id": "TXN_ABC123",
+            "amount": "19.99",
+            "status": "completed"
+        },
+        "verified": true,
+        "gateway_status": {
+            "valid": true,
+            "status": "completed",
+            "sandbox": true
+        }
+    },
+    "code": 200,
+    "timestamp": "2025-12-02T12:00:00Z"
+}
+```
+
+**Errors:**
+
+-   404 — Payment not found
+
+#### GET /api/payments/last-plan
+
+Get the last plan the authenticated user paid for, along with the payment record.
+
+**Response (200):**
+
+```json
+{
+    "status": "success",
+    "message": "OK",
+    "data": {
+        "plan": {
+            "id": 2,
+            "name": "Pro",
+            "slug": "pro",
+            "description": "Full access for professionals",
+            "price": "19.99",
+            "currency": "USD",
+            "interval": "monthly",
+            "trial_days": 14,
+            "features": ["Unlimited AI queries", "Priority support"],
+            "is_active": true
+        },
+        "payment": {
+            "id": 1,
+            "transaction_id": "TXN_ABC123",
+            "plan_name": "pro",
+            "amount": "19.99",
+            "currency": "USD",
+            "status": "completed",
+            "type": "subscription",
+            "paid_at": "2025-12-02T12:00:00Z"
+        }
+    },
+    "code": 200,
+    "timestamp": "2025-12-02T12:00:00Z"
+}
+```
+
+**Response when no plan purchase found (200):**
+
+```json
+{
+    "status": "success",
+    "message": "No plan purchase found",
+    "data": {
+        "plan": null,
+        "payment": null
+    },
+    "code": 200,
+    "timestamp": "2025-12-02T12:00:00Z"
+}
+```
+
+#### POST /api/payments/refund/{transactionId}
+
+Request a refund for a completed payment.
+
+**Request body (optional):**
+
+```json
+{
+    "reason": "Customer requested refund"
+}
+```
+
+**Response (200):**
+
+```json
+{
+    "status": "success",
+    "message": "Refund processed successfully",
+    "data": {
+        "id": 1,
+        "transaction_id": "TXN_ABC123",
+        "status": "refunded",
+        "metadata": {
+            "refund_reason": "Customer requested refund",
+            "refund_transaction_id": "REF_XYZ789",
+            "refunded_at": "2025-12-02T12:00:00Z"
+        }
+    },
+    "code": 200,
+    "timestamp": "2025-12-02T12:00:00Z"
+}
+```
+
+**Errors:**
+
+-   400 — Already refunded or not completed
+-   404 — Payment not found
+
+#### POST /api/payments/revert-plan
+
+Change or clear the user's current plan without charging. This creates an audit payment record with type `revert` so plan changes are recorded in history.
+
+**Request body:**
+
+```json
+{
+    "to_plan": "free", // optional plan slug to switch to; omit or null to clear current_plan
+    "reason": "Downgrading to free plan"
+}
+```
+
+**Validation:**
+
+-   `to_plan` — optional, must be a valid plan slug if present
+-   `reason` — optional, max 500 chars
+
+**Response (200):**
+
+```json
+{
+    "status": "success",
+    "message": "Plan reverted",
+    "data": {
+        "payment": {
+            "id": 12,
+            "type": "revert",
+            "plan_name": "free",
+            "amount": "0.00"
+        },
+        "user": { "id": 1, "current_plan": "free" }
+    },
+    "code": 200
+}
+```
+
+**Errors:**
+
+-   401 — Unauthenticated
+-   422 — Validation failed
+
+### Payment Webhook (public)
+
+#### POST /api/payments/webhook
+
+Handle payment gateway webhooks (sandbox simulation).
+
+**Request body:**
+
+```json
+{
+    "event_type": "payment.completed",
+    "transaction_id": "TXN_ABC123",
+    "payload": {}
+}
+```
+
+**Supported event types:**
+
+-   `payment.completed` — marks a payment as completed
+-   `payment.failed` — marks a payment as failed
+
+Note: lifecycle events for a separate subscription model are not used in this API — plan state is represented by `users.current_plan` and recorded payments. Only payment events are handled in the webhook handler for the sandbox gateway.
+
+**Headers (optional):**
+
+-   `X-Webhook-Signature` — HMAC signature (sandbox accepts any value)
+
+**Response (200):**
+
+```json
+{
+    "status": "success",
+    "message": "Webhook processed",
+    "data": {
+        "received": true,
+        "event_type": "payment.completed"
+    },
+    "code": 200,
+    "timestamp": "2025-12-02T12:00:00Z"
+}
+```
+
+**Errors:**
+
+-   401 — Invalid webhook signature (in production)
+-   422 — Missing event_type or transaction_id
 
 ---

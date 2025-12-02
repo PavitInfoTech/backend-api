@@ -37,6 +37,17 @@ Route::middleware('auth:sanctum')->group(function () {
     // Unlink a social provider (authenticated)
     Route::post('/auth/unlink', [\App\Http\Controllers\Api\AuthController::class, 'unlinkProvider']);
 
+    // Subscriptions & Payments (authenticated)
+    // subscription lifecycle endpoints removed (subscriptions are not stored separately)
+    Route::post('/subscriptions', [\App\Http\Controllers\Api\PaymentController::class, 'subscribe']);
+    // cancel endpoint removed — subscriptions are not tracked separately
+    Route::get('/payments', [\App\Http\Controllers\Api\PaymentController::class, 'listPayments']);
+    Route::get('/payments/last-plan', [\App\Http\Controllers\Api\PaymentController::class, 'lastPlan']);
+    Route::post('/payments/process', [\App\Http\Controllers\Api\PaymentController::class, 'processPayment']);
+    Route::post('/payments/revert-plan', [\App\Http\Controllers\Api\PaymentController::class, 'revertPlan']);
+    Route::get('/payments/{transactionId}', [\App\Http\Controllers\Api\PaymentController::class, 'verifyPayment']);
+    Route::post('/payments/refund/{transactionId}', [\App\Http\Controllers\Api\PaymentController::class, 'refundPayment']);
+
     // API fallback — return structured JSON for unmatched API routes
     Route::fallback(function () {
         Log::info('API fallback triggered', ['uri' => request()->path()]);
@@ -93,6 +104,13 @@ Route::post('/mail/newsletter', [\App\Http\Controllers\Api\MailController::class
 Route::get('/mail/newsletter/verify/{token}', [\App\Http\Controllers\Api\MailController::class, 'verifyNewsletter']);
 Route::get('/mail/newsletter/unsubscribe/{token}', [\App\Http\Controllers\Api\MailController::class, 'unsubscribe']);
 Route::post('/mail/password-reset', [\App\Http\Controllers\Api\MailController::class, 'passwordReset']);
+
+// Subscription Plans (public)
+Route::get('/subscription-plans', [\App\Http\Controllers\Api\PaymentController::class, 'listPlans']);
+Route::get('/subscription-plans/{slug}', [\App\Http\Controllers\Api\PaymentController::class, 'showPlan']);
+
+// Payment Webhook (public, no auth)
+Route::post('/payments/webhook', [\App\Http\Controllers\Api\PaymentController::class, 'handleWebhook']);
 
 // Dev tools: run migrations via HTTP POST. Use X-RUN-MIG-TOKEN header (env RUN_MIG_TOKEN) and set ALLOW_RUN_MIG=true in .env.
 Route::post('/admin/migrate', [\App\Http\Controllers\Api\DevToolsController::class, 'runMigration'])->middleware('throttle:10,1');
