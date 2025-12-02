@@ -17,22 +17,22 @@ php artisan migrate
 
 The following tables are created by the migrations:
 
-| Table | Description |
-|-------|-------------|
-| `users` | User accounts with fields: id, username, first_name, last_name, email, email_verified_at, password, provider_name, provider_id, avatar, current_plan, remember_token, timestamps |
-| `password_reset_tokens` | Password reset tokens (email, token, created_at) |
-| `sessions` | Session storage for web authentication |
-| `personal_access_tokens` | Sanctum API tokens (id, tokenable_type, tokenable_id, name, token, abilities, last_used_at, expires_at, timestamps) |
-| `email_verification_tokens` | Email verification tokens (email, token, created_at) |
-| `ai_requests` | AI generation request logs (id, user_id, model, prompt, status, result, error, tokens_used, meta, timestamps) |
-| `newsletter_subscribers` | Newsletter subscriptions (id, name, email, verification_token, verified_at, unsubscribe_token, timestamps) |
-| `subscription_plans` | Available plans (id, name, slug, description, price, currency, interval, trial_days, features, is_active, timestamps) |
-| `payments` | Payment records (id, user_id, transaction_id, gateway, amount, currency, status, type, card_last_four, card_brand, description, plan_name, gateway_response, metadata, paid_at, timestamps) |
-| `cache` | Laravel cache storage |
-| `cache_locks` | Laravel cache locks |
-| `jobs` | Laravel queue jobs |
-| `job_batches` | Laravel queue job batches |
-| `failed_jobs` | Failed queue jobs |
+| Table                       | Description                                                                                                                                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users`                     | User accounts with fields: id, username, first_name, last_name, email, email_verified_at, password, provider_name, provider_id, avatar, current_plan, remember_token, timestamps            |
+| `password_reset_tokens`     | Password reset tokens (email, token, created_at)                                                                                                                                            |
+| `sessions`                  | Session storage for web authentication                                                                                                                                                      |
+| `personal_access_tokens`    | Sanctum API tokens (id, tokenable_type, tokenable_id, name, token, abilities, last_used_at, expires_at, timestamps)                                                                         |
+| `email_verification_tokens` | Email verification tokens (email, token, created_at)                                                                                                                                        |
+| `ai_requests`               | AI generation request logs (id, user_id, model, prompt, status, result, error, tokens_used, meta, timestamps)                                                                               |
+| `newsletter_subscribers`    | Newsletter subscriptions (id, name, email, verification_token, verified_at, unsubscribe_token, timestamps)                                                                                  |
+| `subscription_plans`        | Available plans (id, name, slug, description, price, currency, interval, trial_days, features, is_active, timestamps)                                                                       |
+| `payments`                  | Payment records (id, user_id, transaction_id, gateway, amount, currency, status, type, card_last_four, card_brand, description, plan_name, gateway_response, metadata, paid_at, timestamps) |
+| `cache`                     | Laravel cache storage                                                                                                                                                                       |
+| `cache_locks`               | Laravel cache locks                                                                                                                                                                         |
+| `jobs`                      | Laravel queue jobs                                                                                                                                                                          |
+| `job_batches`               | Laravel queue job batches                                                                                                                                                                   |
+| `failed_jobs`               | Failed queue jobs                                                                                                                                                                           |
 
 Installed and recommended packages:
 
@@ -72,60 +72,60 @@ Note: For local development you can avoid configuring DNS or host entries by ena
 
 ### All endpoints at a glance
 
-| Method | URI | Description | Auth |
-|--------|-----|-------------|------|
-| GET | `/api/ping` | Health check | No |
-| **Authentication** | | | |
-| POST | `/api/auth/register` | Register new user | No |
-| POST | `/api/auth/login` | Login with email/password | No |
-| POST | `/api/auth/logout` | Logout (revoke token) | Yes |
-| GET | `/api/auth/google/redirect` | Redirect to Google OAuth | No |
-| GET | `/api/auth/google/callback` | Google OAuth callback | No |
-| POST | `/api/auth/google/token` | Exchange Google code/credential for token | No |
-| GET | `/api/auth/github/redirect` | Redirect to GitHub OAuth | No |
-| GET | `/api/auth/github/callback` | GitHub OAuth callback | No |
-| POST | `/api/auth/github/token` | Exchange GitHub code/token for API token | No |
-| POST | `/api/auth/password/forgot` | Request password reset email | No |
-| POST | `/api/auth/password/reset` | Reset password with token | No |
-| POST | `/api/auth/password/change` | Change password (authenticated) | Yes |
-| POST | `/api/auth/verify/send` | Send/resend verification email | No |
-| GET | `/api/auth/verify/{token}` | Verify email with token | No |
-| GET | `/api/auth/link/google/redirect` | Link Google account | Yes |
-| GET | `/api/auth/link/google/callback` | Google link callback | Yes |
-| GET | `/api/auth/link/github/redirect` | Link GitHub account | Yes |
-| GET | `/api/auth/link/github/callback` | GitHub link callback | Yes |
-| POST | `/api/auth/unlink` | Unlink OAuth provider | Yes |
-| **User Profile** | | | |
-| GET | `/api/user` | Get current user profile | Yes |
-| PUT | `/api/user` | Update user profile | Yes |
-| DELETE | `/api/user` | Delete user account | Yes |
-| POST | `/api/user/avatar` | Upload avatar image | Yes |
-| GET | `/api/users/{id}/public` | Get public profile | No |
-| **Mail** | | | |
-| POST | `/api/mail/contact` | Send contact message | No |
-| POST | `/api/mail/newsletter` | Subscribe to newsletter | No |
-| GET | `/api/mail/newsletter/verify/{token}` | Verify newsletter subscription | No |
-| GET | `/api/mail/newsletter/unsubscribe/{token}` | Unsubscribe from newsletter | No |
-| POST | `/api/mail/password-reset` | Send password reset email | No |
-| **AI / Gorq** | | | |
-| POST | `/api/ai/generate` | Generate AI response | No |
-| GET | `/api/ai/jobs/{id}/status` | Get async AI job status | No |
-| **Maps** | | | |
-| POST | `/api/maps/pin` | Generate Google Maps embed URL | No |
-| **Plans** | | | |
-| GET | `/api/subscription-plans` | List all plans | No |
-| GET | `/api/subscription-plans/{slug}` | Get plan by slug | No |
-| **Payments** | | | |
-| POST | `/api/subscriptions` | Pay for a plan (purchase) | Yes |
-| POST | `/api/payments/process` | Process one-time payment | Yes |
-| GET | `/api/payments` | List payment history | Yes |
-| GET | `/api/payments/last-plan` | Get last purchased plan | Yes |
-| GET | `/api/payments/{transactionId}` | Verify/get payment details | Yes |
-| POST | `/api/payments/refund/{transactionId}` | Request refund | Yes |
-| POST | `/api/payments/revert-plan` | Revert/clear current plan | Yes |
-| POST | `/api/payments/webhook` | Payment webhook handler | No |
-| **Admin/Dev Tools** | | | |
-| POST | `/api/admin/migrate` | Run migrations via HTTP | Token |
+| Method              | URI                                        | Description                               | Auth  |
+| ------------------- | ------------------------------------------ | ----------------------------------------- | ----- |
+| GET                 | `/api/ping`                                | Health check                              | No    |
+| **Authentication**  |                                            |                                           |       |
+| POST                | `/api/auth/register`                       | Register new user                         | No    |
+| POST                | `/api/auth/login`                          | Login with email/password                 | No    |
+| POST                | `/api/auth/logout`                         | Logout (revoke token)                     | Yes   |
+| GET                 | `/api/auth/google/redirect`                | Redirect to Google OAuth                  | No    |
+| GET                 | `/api/auth/google/callback`                | Google OAuth callback                     | No    |
+| POST                | `/api/auth/google/token`                   | Exchange Google code/credential for token | No    |
+| GET                 | `/api/auth/github/redirect`                | Redirect to GitHub OAuth                  | No    |
+| GET                 | `/api/auth/github/callback`                | GitHub OAuth callback                     | No    |
+| POST                | `/api/auth/github/token`                   | Exchange GitHub code/token for API token  | No    |
+| POST                | `/api/auth/password/forgot`                | Request password reset email              | No    |
+| POST                | `/api/auth/password/reset`                 | Reset password with token                 | No    |
+| POST                | `/api/auth/password/change`                | Change password (authenticated)           | Yes   |
+| POST                | `/api/auth/verify/send`                    | Send/resend verification email            | No    |
+| GET                 | `/api/auth/verify/{token}`                 | Verify email with token                   | No    |
+| GET                 | `/api/auth/link/google/redirect`           | Link Google account                       | Yes   |
+| GET                 | `/api/auth/link/google/callback`           | Google link callback                      | Yes   |
+| GET                 | `/api/auth/link/github/redirect`           | Link GitHub account                       | Yes   |
+| GET                 | `/api/auth/link/github/callback`           | GitHub link callback                      | Yes   |
+| POST                | `/api/auth/unlink`                         | Unlink OAuth provider                     | Yes   |
+| **User Profile**    |                                            |                                           |       |
+| GET                 | `/api/user`                                | Get current user profile                  | Yes   |
+| PUT                 | `/api/user`                                | Update user profile                       | Yes   |
+| DELETE              | `/api/user`                                | Delete user account                       | Yes   |
+| POST                | `/api/user/avatar`                         | Upload avatar image                       | Yes   |
+| GET                 | `/api/users/{id}/public`                   | Get public profile                        | No    |
+| **Mail**            |                                            |                                           |       |
+| POST                | `/api/mail/contact`                        | Send contact message                      | No    |
+| POST                | `/api/mail/newsletter`                     | Subscribe to newsletter                   | No    |
+| GET                 | `/api/mail/newsletter/verify/{token}`      | Verify newsletter subscription            | No    |
+| GET                 | `/api/mail/newsletter/unsubscribe/{token}` | Unsubscribe from newsletter               | No    |
+| POST                | `/api/mail/password-reset`                 | Send password reset email                 | No    |
+| **AI / Gorq**       |                                            |                                           |       |
+| POST                | `/api/ai/generate`                         | Generate AI response                      | No    |
+| GET                 | `/api/ai/jobs/{id}/status`                 | Get async AI job status                   | No    |
+| **Maps**            |                                            |                                           |       |
+| POST                | `/api/maps/pin`                            | Generate Google Maps embed URL            | No    |
+| **Plans**           |                                            |                                           |       |
+| GET                 | `/api/subscription-plans`                  | List all plans                            | No    |
+| GET                 | `/api/subscription-plans/{slug}`           | Get plan by slug                          | No    |
+| **Payments**        |                                            |                                           |       |
+| POST                | `/api/subscriptions`                       | Pay for a plan (purchase)                 | Yes   |
+| POST                | `/api/payments/process`                    | Process one-time payment                  | Yes   |
+| GET                 | `/api/payments`                            | List payment history                      | Yes   |
+| GET                 | `/api/payments/last-plan`                  | Get last purchased plan                   | Yes   |
+| GET                 | `/api/payments/{transactionId}`            | Verify/get payment details                | Yes   |
+| POST                | `/api/payments/refund/{transactionId}`     | Request refund                            | Yes   |
+| POST                | `/api/payments/revert-plan`                | Revert/clear current plan                 | Yes   |
+| POST                | `/api/payments/webhook`                    | Payment webhook handler                   | No    |
+| **Admin/Dev Tools** |                                            |                                           |       |
+| POST                | `/api/admin/migrate`                       | Run migrations via HTTP                   | Token |
 
 ## Developer tools
 
@@ -966,7 +966,7 @@ Pay for a plan (purchase). This endpoint charges (sandbox) the card, creates a p
 
 **Validation:**
 
--   `plan_slug` — required, must exist in subscription_plans
+-   `plan_slug` — required string. The API accepts any plan slug the client provides; if the slug does not exist, the server will create a minimal placeholder record in `subscription_plans` and treat the purchase against that slug (price will default to 0.00 when created). This allows clients to submit a plan identifier without requiring a prior admin-created plan.
 -   `payment_method.card_number` — required, 13-19 digits
 -   `payment_method.expiry_month` — required, 2 digits (01-12)
 -   `payment_method.expiry_year` — required, 2 digits (YY format)

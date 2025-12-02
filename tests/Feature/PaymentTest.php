@@ -164,6 +164,36 @@ class PaymentTest extends TestCase
             ->assertJsonValidationErrors(['payment_method.expiry_month', 'payment_method.cvv']);
     }
 
+    public function test_user_can_subscribe_to_nonexistent_plan_and_it_is_created(): void
+    {
+        // use a slug that doesn't exist yet
+        $slug = 'brand-new-plan';
+
+        $response = $this->postJson('/api/subscriptions', [
+            'plan_slug' => $slug,
+            'payment_method' => $this->validPaymentMethod(),
+        ], $this->authHeaders());
+
+        $response->assertCreated()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonStructure(['data' => ['payment']]);
+
+        // Payment recorded and user current_plan updated to provided slug
+        $this->assertDatabaseHas('payments', [
+            'user_id' => $this->user->id,
+            'plan_name' => $slug,
+            'status' => 'completed',
+        ]);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $this->user->id,
+            'current_plan' => $slug,
+        ]);
+
+        // The subscription_plans table should have a placeholder record created for the slug
+        $this->assertDatabaseHas('subscription_plans', ['slug' => $slug]);
+    }
+
     public function test_subscribe_with_declined_card(): void
     {
         $response = $this->postJson('/api/subscriptions', [

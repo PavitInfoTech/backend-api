@@ -54,7 +54,8 @@ class PaymentController extends ApiController
     public function subscribe(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'plan_slug' => 'required|string|exists:subscription_plans,slug',
+            // Accept any plan_slug value — do not require it to already exist
+            'plan_slug' => 'required|string',
             'payment_method' => 'required|array',
             'payment_method.card_number' => 'required|string|min:13|max:19',
             'payment_method.expiry_month' => 'required|string|size:2',
@@ -69,23 +70,48 @@ class PaymentController extends ApiController
         }
 
         $user = $request->user();
+        // Lookup plan. If not present, create a minimal placeholder so plan_slug is recorded.
         $plan = SubscriptionPlan::where('slug', $request->plan_slug)->first();
+        if (! $plan) {
+            $plan = SubscriptionPlan::create([
+                'name' => ucfirst($request->plan_slug),
+                'slug' => $request->plan_slug,
+                'description' => null,
+                'price' => 0.00,
+                'currency' => 'USD',
+                'interval' => 'monthly',
+                'trial_days' => 0,
+                'features' => [],
+                'is_active' => true,
+            ]);
+        }
 
         // subscription lifecycle removed — payments attach plan name to user
 
         DB::beginTransaction();
         try {
-            // Process payment through sandbox gateway
-            $paymentResult = $this->gateway->processPayment([
-                'amount' => $plan->price,
-                'currency' => $plan->currency,
-                'card_number' => $request->input('payment_method.card_number'),
-                'expiry_month' => $request->input('payment_method.expiry_month'),
-                'expiry_year' => $request->input('payment_method.expiry_year'),
-                'cvv' => $request->input('payment_method.cvv'),
-                'card_holder' => $request->input('payment_method.card_holder'),
-                'description' => "Subscription to {$plan->name}",
-            ]);
+            // Process payment through sandbox gateway for paid plans only. For zero-priced
+            // plans, treat the purchase as successful without calling the gateway.
+            if ((float) $plan->price > 0) {
+                $paymentResult = $this->gateway->processPayment([
+                    'amount' => $plan->price,
+                    'currency' => $plan->currency,
+                    'card_number' => $request->input('payment_method.card_number'),
+                    'expiry_month' => $request->input('payment_method.expiry_month'),
+                    'expiry_year' => $request->input('payment_method.expiry_year'),
+                    'cvv' => $request->input('payment_method.cvv'),
+                    'card_holder' => $request->input('payment_method.card_holder'),
+                    'description' => "Subscription to {$plan->name}",
+                ]);
+            } else {
+                // zero-cost: simulate success
+                $paymentResult = [
+                    'success' => true,
+                    'transaction_id' => Payment::generateTransactionId(),
+                    'card_last_four' => null,
+                    'card_brand' => null,
+                ];
+            }
 
             if (!$paymentResult['success']) {
                 DB::rollBack();
