@@ -72,75 +72,60 @@ Note: For local development you can avoid configuring DNS or host entries by ena
 
 ### All endpoints at a glance
 
-| Method             | URI                              | Description                               | Auth |
-| ------------------ | -------------------------------- | ----------------------------------------- | ---- |
-| GET                | `/api/ping`                      | Health check                              | No   |
-| **Authentication** |                                  |                                           |      |
-| POST               | `/api/auth/register`             | Register new user                         | No   |
-| POST               | `/api/auth/login`                | Login with email/password                 | No   |
-| POST               | `/api/auth/logout`               | Logout (revoke token)                     | Yes  |
-| GET                | `/api/auth/google/redirect`      | Redirect to Google OAuth                  | No   |
-| GET                | `/api/auth/google/callback`      | Google OAuth callback                     | No   |
-| POST               | `/api/auth/google/token`         | Exchange Google code/credential for token | No   |
-| GET                | `/api/auth/github/redirect`      | Redirect to GitHub OAuth                  | No   |
-| GET                | `/api/auth/github/callback`      | GitHub OAuth callback                     | No   |
-| POST               | `/api/auth/github/token`         | Exchange GitHub code/token for API token  | No   |
-| POST               | `/api/auth/password/forgot`      | Request password reset email              | No   |
-| POST               | `/api/auth/password/reset`       | Reset password with token                 | No   |
-| POST               | `/api/auth/password/change`      | Change password (authenticated)           | Yes  |
-| POST               | `/api/auth/verify/send`          | Send/resend verification email            | No   |
-| GET                | `/api/auth/verify/{token}`       | Verify email with token                   | No   |
-| GET                | `/api/auth/link/google/redirect` | Link Google account                       | Yes  |
-| GET                | `/api/auth/link/google/callback` | Google link callback                      | Yes  |
-| GET                | `/api/auth/link/github/redirect` | Link GitHub account                       | Yes  |
-| GET                | `/api/auth/link/github/callback` | GitHub link callback                      | Yes  |
-| POST               | `/api/auth/unlink`               | Unlink OAuth provider                     | Yes  |
-| **User Profile**   |                                  |                                           |      |
-
-> Note: The browser redirect/callback OAuth routes require the server session so Socialite can maintain the OAuth state parameter. These routes are registered with the `web` (session) middleware in the API, which makes browser-based OAuth redirects work correctly. Because your frontend is on the root domain and the API is on a subdomain, set session cookie options in `.env` so cookies are shared across subdomains.
-
-Example settings for pavitinfotech.com + api.pavitinfotech.com
-
-```
-SESSION_DRIVER=file
-SESSION_DOMAIN=.pavitinfotech.com
-SESSION_SECURE_COOKIE=true    # only in production with HTTPS
-SESSION_SAME_SITE=lax         # allows top-level navigation redirects to set cookie
-```
-
-> If your frontend is on an entirely different top-level domain (e.g., frontend.com and api.example.com) you can't share cookies — use the token-exchange endpoints (`POST /api/auth/google/token`, `POST /api/auth/github/token`) for stateless API-only flows or `Socialite::stateless()` with your own CSRF/state protection.
-
-> If your frontend is on a different top-level domain and cannot share cookies, prefer using the token-exchange endpoints (`POST /api/auth/google/token`, `POST /api/auth/github/token`) for API-only flows or use `Socialite::stateless()` after adding custom CSRF/state protection.
-> | GET | `/api/user` | Get current user profile | Yes |
-> | PUT | `/api/user` | Update user profile | Yes |
-> | DELETE | `/api/user` | Delete user account | Yes |
-> | POST | `/api/user/avatar` | Upload avatar image | Yes |
-> | GET | `/api/users/{id}/public` | Get public profile | No |
-> | **Mail** | | | |
-> | POST | `/api/mail/contact` | Send contact message | No |
-> | POST | `/api/mail/newsletter` | Subscribe to newsletter | No |
-> | GET | `/api/mail/newsletter/verify/{token}` | Verify newsletter subscription | No |
-> | GET | `/api/mail/newsletter/unsubscribe/{token}` | Unsubscribe from newsletter | No |
-> | POST | `/api/mail/password-reset` | Send password reset email | No |
-> | **AI / Gorq** | | | |
-> | POST | `/api/ai/generate` | Generate AI response | No |
-> | GET | `/api/ai/jobs/{id}/status` | Get async AI job status | No |
-> | **Maps** | | | |
-> | POST | `/api/maps/pin` | Generate Google Maps embed URL | No |
-> | **Plans** | | | |
-> | GET | `/api/subscription-plans` | List all plans | No |
-> | GET | `/api/subscription-plans/{slug}` | Get plan by slug | No |
-> | **Payments** | | | |
-> | POST | `/api/subscriptions` | Pay for a plan (purchase) | Yes |
-> | POST | `/api/payments/process` | Process one-time payment | Yes |
-> | GET | `/api/payments` | List payment history | Yes |
-> | GET | `/api/payments/last-plan` | Get last purchased plan | Yes |
-> | GET | `/api/payments/{transactionId}` | Verify/get payment details | Yes |
-> | POST | `/api/payments/refund/{transactionId}` | Request refund | Yes |
-> | POST | `/api/payments/revert-plan` | Revert/clear current plan | Yes |
-> | POST | `/api/payments/webhook` | Payment webhook handler | No |
-> | **Admin/Dev Tools** | | | |
-> | POST | `/api/admin/migrate` | Run migrations via HTTP | Token |
+| Method              | URI                                        | Description                               | Auth  |
+| ------------------- | ------------------------------------------ | ----------------------------------------- | ----- |
+| GET                 | `/api/ping`                                | Health check                              | No    |
+| **Authentication**  |                                            |                                           |       |
+| POST                | `/api/auth/register`                       | Register new user                         | No    |
+| POST                | `/api/auth/login`                          | Login with email/password                 | No    |
+| POST                | `/api/auth/logout`                         | Logout (revoke token)                     | Yes   |
+| GET                 | `/api/auth/google/redirect`                | Redirect to Google OAuth                  | No    |
+| GET                 | `/api/auth/google/callback`                | Google OAuth callback                     | No    |
+| POST                | `/api/auth/google/token`                   | Exchange Google code/credential for token | No    |
+| GET                 | `/api/auth/github/redirect`                | Redirect to GitHub OAuth                  | No    |
+| GET                 | `/api/auth/github/callback`                | GitHub OAuth callback                     | No    |
+| POST                | `/api/auth/github/token`                   | Exchange GitHub code/token for API token  | No    |
+| POST                | `/api/auth/password/forgot`                | Request password reset email              | No    |
+| POST                | `/api/auth/password/reset`                 | Reset password with token                 | No    |
+| POST                | `/api/auth/password/change`                | Change password (authenticated)           | Yes   |
+| POST                | `/api/auth/verify/send`                    | Send/resend verification email            | No    |
+| GET                 | `/api/auth/verify/{token}`                 | Verify email with token                   | No    |
+| GET                 | `/api/auth/link/google/redirect`           | Link Google account                       | Yes   |
+| GET                 | `/api/auth/link/google/callback`           | Google link callback                      | Yes   |
+| GET                 | `/api/auth/link/github/redirect`           | Link GitHub account                       | Yes   |
+| GET                 | `/api/auth/link/github/callback`           | GitHub link callback                      | Yes   |
+| POST                | `/api/auth/unlink`                         | Unlink OAuth provider                     | Yes   |
+| **User Profile**    |                                            |                                           |       |
+| GET                 | `/api/user`                                | Get current user profile                  | Yes   |
+| PUT                 | `/api/user`                                | Update user profile                       | Yes   |
+| DELETE              | `/api/user`                                | Delete user account                       | Yes   |
+| POST                | `/api/user/avatar`                         | Upload avatar image                       | Yes   |
+| GET                 | `/api/users/{id}/public`                   | Get public profile                        | No    |
+| **Mail**            |                                            |                                           |       |
+| POST                | `/api/mail/contact`                        | Send contact message                      | No    |
+| POST                | `/api/mail/newsletter`                     | Subscribe to newsletter                   | No    |
+| GET                 | `/api/mail/newsletter/verify/{token}`      | Verify newsletter subscription            | No    |
+| GET                 | `/api/mail/newsletter/unsubscribe/{token}` | Unsubscribe from newsletter               | No    |
+| POST                | `/api/mail/password-reset`                 | Send password reset email                 | No    |
+| **AI / Gorq**       |                                            |                                           |       |
+| POST                | `/api/ai/generate`                         | Generate AI response                      | No    |
+| GET                 | `/api/ai/jobs/{id}/status`                 | Get async AI job status                   | No    |
+| **Maps**            |                                            |                                           |       |
+| POST                | `/api/maps/pin`                            | Generate Google Maps embed URL            | No    |
+| **Plans**           |                                            |                                           |       |
+| GET                 | `/api/subscription-plans`                  | List all plans                            | No    |
+| GET                 | `/api/subscription-plans/{slug}`           | Get plan by slug                          | No    |
+| **Payments**        |                                            |                                           |       |
+| POST                | `/api/subscriptions`                       | Pay for a plan (purchase)                 | Yes   |
+| POST                | `/api/payments/process`                    | Process one-time payment                  | Yes   |
+| GET                 | `/api/payments`                            | List payment history                      | Yes   |
+| GET                 | `/api/payments/last-plan`                  | Get last purchased plan                   | Yes   |
+| GET                 | `/api/payments/{transactionId}`            | Verify/get payment details                | Yes   |
+| POST                | `/api/payments/refund/{transactionId}`     | Request refund                            | Yes   |
+| POST                | `/api/payments/revert-plan`                | Revert/clear current plan                 | Yes   |
+| POST                | `/api/payments/webhook`                    | Payment webhook handler                   | No    |
+| **Admin/Dev Tools** |                                            |                                           |       |
+| POST                | `/api/admin/migrate`                       | Run migrations via HTTP                   | Token |
 
 ## Developer tools
 
@@ -326,14 +311,12 @@ Authorization: Bearer <your-plain-text-token-here>
         -   If no matching user exists, a new user is created and provider fields (`provider_name`, `provider_id`, `avatar`) are saved.
         -   A Laravel Sanctum personal access token is created.
         -   Behavior detail:
-            -   **By default (browser flow):** The server redirects (302) to `${FRONTEND_URL}/auth/complete?token=<sanctum-token>`. The token is passed as a query parameter for the frontend to extract and store.
-            -   **JSON response:** Only returned when the request is an explicit AJAX call (`X-Requested-With: XMLHttpRequest`), the `Accept` header specifically prefers `application/json` without `text/html` or `*/*`, or the query param `?format=json` is present.
-    -   Browser flow response (Redirect — default for all browser requests):
-        -   302 redirect to `${FRONTEND_URL}/auth/complete?token=<plain-text-token>`
-        -   The frontend should extract the token from the URL, store it, and replace the URL in browser history to remove the token.
-    -   API flow response (JSON — only when explicitly requested):
+            -   By default the server will set a secure, HttpOnly cookie named `api_token` and redirect the browser to the SPA route (e.g. `${FRONTEND_URL}/auth/complete`) so the token never appears in the URL.
+            -   If the request explicitly expects JSON (e.g., Accept: application/json), the token will be returned in the JSON response instead.
+    -   Browser flow response (Redirect):
+        -   302 redirect to the SPA route, cookie `api_token` set (HttpOnly, Secure in production).
+    -   API flow response (JSON - when Accept: application/json):
         -   { status: 'success', message: 'Authenticated via Google', data: { user: {...}, token: '<plain-text-token>' } }
-        -   To get JSON, use one of: `?format=json` query param, `X-Requested-With: XMLHttpRequest` header, or `Accept: application/json` (without `text/html` or `*/*`).
 
 -   POST /api/auth/google/token (API-only token exchange)
 
@@ -382,7 +365,7 @@ Authorization: Bearer <your-plain-text-token-here>
 ### GitHub OAuth (browser redirect flow)
 
     -   GET /api/auth/github/redirect — Redirects the browser to GitHub's OAuth consent page (via Socialite). If your SPA needs the URL to redirect itself, call this endpoint and read the Location header.
-    -   GET /api/auth/github/callback — OAuth callback endpoint which handles the GitHub response and returns a token in JSON (for API clients) or redirects to `${FRONTEND_URL}/auth/complete?token=<token>` for browser flows.
+    -   GET /api/auth/github/callback — OAuth callback endpoint which handles the GitHub response and returns a token in JSON (for API clients) or sets a secure `api_token` cookie and redirects to the SPA route on success.
 
 #### GitHub OAuth behavior
 
@@ -390,7 +373,7 @@ Authorization: Bearer <your-plain-text-token-here>
 
     -   Creates the user if not present and saves `provider_name` = 'github' and `provider_id`.
     -   If a user already exists with the same email, the code attaches `provider` fields to that existing user rather than creating a new one.
-    -   Returns JSON with `user` and `token` in API flows, and redirects with token in query param on browser flows.
+    -   Returns JSON with `user` and `token` in API flows, and sets an `api_token` cookie on browser flows.
 
 -   POST /api/auth/github/token (API-only token exchange)
 

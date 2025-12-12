@@ -59,7 +59,7 @@ class GoogleOAuthTest extends TestCase
         $this->assertDatabaseHas('users', ['email' => 'existing@example.com', 'provider_id' => 'google-222']);
     }
 
-    public function test_callback_passes_token_in_query_and_redirects_for_browser()
+    public function test_callback_sets_cookie_and_redirects_for_browser()
     {
         // Ensure frontend URL used by callback redirect
         config(['app.frontend_url' => 'http://frontend.test']);
@@ -80,17 +80,19 @@ class GoogleOAuthTest extends TestCase
         $response = $this->get('/api/auth/google/callback', ['Accept' => 'text/html']);
 
         $response->assertStatus(302);
+        $response->assertRedirect('http://frontend.test/auth/complete');
 
-        // Verify redirect URL contains token query parameter
-        $redirectUrl = $response->headers->get('Location');
-        $this->assertStringStartsWith('http://frontend.test/auth/complete?token=', $redirectUrl);
+        // Verify cookie exists on the response
+        $cookies = $response->headers->getCookies();
+        $found = false;
+        foreach ($cookies as $cookie) {
+            if ($cookie->getName() === 'api_token') {
+                $found = true;
+                break;
+            }
+        }
 
-        // Parse and verify the token is a valid Sanctum token format (id|plaintext)
-        $parsedUrl = parse_url($redirectUrl);
-        parse_str($parsedUrl['query'] ?? '', $queryParams);
-        $this->assertArrayHasKey('token', $queryParams);
-        $this->assertNotEmpty($queryParams['token']);
-
+        $this->assertTrue($found, 'api_token cookie was not set on callback redirect response');
         $this->assertDatabaseHas('users', ['email' => 'browser@example.com', 'provider_id' => 'google-333']);
     }
 }

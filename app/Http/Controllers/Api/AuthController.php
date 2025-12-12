@@ -566,39 +566,21 @@ class AuthController extends ApiController
 
     protected function cookieRedirectResponse(string $token)
     {
+        $minutes = (int) env('SANCTUM_COOKIE_TTL', 60 * 24 * 30);
         $frontend = rtrim(config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:3000')), '/');
+        $redirectTo = $frontend . '/auth/complete';
 
-        // Pass token via query parameter for the frontend to extract
-        // This is safe because:
-        // 1. It's a one-time redirect to the same-origin frontend
-        // 2. The frontend immediately extracts and stores the token
-        // 3. History is replaced to remove token from browser history
-        $redirectTo = $frontend . '/auth/complete?token=' . urlencode($token);
+        $secure = ! app()->environment('local');
+        $sameSite = 'Lax';
 
-        return redirect($redirectTo);
+        $cookie = cookie('api_token', $token, $minutes, '/', null, $secure, true, false, $sameSite);
+
+        return redirect($redirectTo)->withCookie($cookie);
     }
 
     protected function expectsJsonResponse(Request $request): bool
     {
-        // Only return JSON if the client explicitly requests it via:
-        // 1. X-Requested-With: XMLHttpRequest header (AJAX)
-        // 2. Accept header that specifically prefers JSON over HTML (not just */*)
-        // 3. Query param ?format=json (explicit override)
-        // This ensures browser OAuth callbacks always redirect to the frontend.
-        if ($request->query('format') === 'json') {
-            return true;
-        }
-
-        if ($request->isXmlHttpRequest()) {
-            return true;
-        }
-
-        // Check if Accept header explicitly prefers JSON and does NOT include HTML
-        $acceptHeader = $request->header('Accept', '');
-        $prefersJson = str_contains($acceptHeader, 'application/json');
-        $acceptsHtml = str_contains($acceptHeader, 'text/html') || str_contains($acceptHeader, '*/*');
-
-        return $prefersJson && ! $acceptsHtml;
+        return $request->wantsJson() || $request->accepts('application/json');
     }
 
     protected function exchangeGoogleCode(string $code, ?string $redirectUri = null): array
