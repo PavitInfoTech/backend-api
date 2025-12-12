@@ -29,10 +29,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Maps (moved to public routes)
 
     // Social linking (authenticated flows) — attach social provider to an existing account
-    Route::get('/auth/link/google/redirect', [\App\Http\Controllers\Api\AuthController::class, 'linkToGoogle']);
-    Route::get('/auth/link/google/callback', [\App\Http\Controllers\Api\AuthController::class, 'handleLinkGoogleCallback']);
-    Route::get('/auth/link/github/redirect', [\App\Http\Controllers\Api\AuthController::class, 'linkToGithub']);
-    Route::get('/auth/link/github/callback', [\App\Http\Controllers\Api\AuthController::class, 'handleLinkGithubCallback']);
+    // Social linking (authenticated flows) — attach social provider to an existing account
+    // These are kept inside the auth group but require session middleware for browser redirects
+    Route::get('/auth/link/google/redirect', [\App\Http\Controllers\Api\AuthController::class, 'linkToGoogle'])->middleware('web');
+    Route::get('/auth/link/google/callback', [\App\Http\Controllers\Api\AuthController::class, 'handleLinkGoogleCallback'])->middleware('web');
+    Route::get('/auth/link/github/redirect', [\App\Http\Controllers\Api\AuthController::class, 'linkToGithub'])->middleware('web');
+    Route::get('/auth/link/github/callback', [\App\Http\Controllers\Api\AuthController::class, 'handleLinkGithubCallback'])->middleware('web');
 
     // Unlink a social provider (authenticated)
     Route::post('/auth/unlink', [\App\Http\Controllers\Api\AuthController::class, 'unlinkProvider']);
@@ -93,10 +95,11 @@ Route::post('/auth/google/token', [\App\Http\Controllers\Api\AuthController::cla
 Route::post('/auth/github/token', [\App\Http\Controllers\Api\AuthController::class, 'githubTokenLogin']);
 
 // OAuth
-Route::get('/auth/google/redirect', [\App\Http\Controllers\Api\AuthController::class, 'redirectToGoogle']);
-Route::get('/auth/google/callback', [\App\Http\Controllers\Api\AuthController::class, 'handleGoogleCallback']);
-Route::get('/auth/github/redirect', [\App\Http\Controllers\Api\AuthController::class, 'redirectToGithub']);
-Route::get('/auth/github/callback', [\App\Http\Controllers\Api\AuthController::class, 'handleGithubCallback']);
+// OAuth browser redirects require the session (Socialite state) — keep routes in api.php but enable web middleware
+Route::get('/auth/google/redirect', [\App\Http\Controllers\Api\AuthController::class, 'redirectToGoogle'])->middleware('web');
+Route::get('/auth/google/callback', [\App\Http\Controllers\Api\AuthController::class, 'handleGoogleCallback'])->middleware('web');
+Route::get('/auth/github/redirect', [\App\Http\Controllers\Api\AuthController::class, 'redirectToGithub'])->middleware('web');
+Route::get('/auth/github/callback', [\App\Http\Controllers\Api\AuthController::class, 'handleGithubCallback'])->middleware('web');
 
 // Public mail endpoints
 Route::post('/mail/contact', [\App\Http\Controllers\Api\MailController::class, 'contact']);
