@@ -39,7 +39,7 @@ class MapsController extends ApiController
         $iframe = '<iframe '
             . 'width="' . $width . '" '
             . 'height="' . $height . '" '
-            . 'style="border:0" '
+            . 'style="border:0; width:100%" '
             . 'loading="lazy" '
             . 'allowfullscreen '
             . 'referrerpolicy="no-referrer-when-downgrade" '
