@@ -24,7 +24,7 @@ class MailController extends ApiController
             'message' => 'required|string',
         ]);
 
-        $to = env('MAIL_FROM_ADDRESS');
+        $to = env('MAIL_TO_ADDRESS');
 
         Mail::raw("Contact message from {$data['name']} ({$data['email']})\n\n{$data['message']}", function ($m) use ($to) {
             $m->to($to)->subject('Contact form');
