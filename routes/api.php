@@ -118,6 +118,11 @@ Route::post('/payments/webhook', [\App\Http\Controllers\Api\PaymentController::c
 // Dev tools: run migrations via HTTP POST. Use X-RUN-MIG-TOKEN header (env RUN_MIG_TOKEN) and set ALLOW_RUN_MIG=true in .env.
 Route::post('/admin/migrate', [\App\Http\Controllers\Api\DevToolsController::class, 'runMigration'])->middleware('throttle:10,1');
 
+// Subscription plan management (authenticated users)
+Route::post('/subscription-plans', [\App\Http\Controllers\Api\PaymentController::class, 'createPlan']);
+Route::put('/subscription-plans/{id}', [\App\Http\Controllers\Api\PaymentController::class, 'updatePlan']);
+Route::delete('/subscription-plans/{id}', [\App\Http\Controllers\Api\PaymentController::class, 'deletePlan']);
+
 // API fallback — return structured JSON for unmatched API routes
 Route::fallback(function () {
     return response()->json([

@@ -444,4 +444,80 @@ class PaymentController extends ApiController
             return $this->error('Failed to revert plan: ' . $e->getMessage(), 500);
         }
     }
+
+    /**
+     * POST /api/subscription-plans
+     * Create a new subscription plan (authenticated users).
+     */
+    public function createPlan(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'slug' => 'required|string|max:255|unique:subscription_plans,slug',
+            'description' => 'required|string|max:1000',
+            'price' => 'required|numeric|min:0',
+            'currency' => 'required|string|size:3',
+            'interval' => 'required|in:monthly,yearly',
+            'trial_days' => 'sometimes|integer|min:0|max:365',
+            'features' => 'sometimes|array',
+            'features.*' => 'string|max:255',
+            'is_active' => 'sometimes|boolean',
+        ]);
+
+        $plan = SubscriptionPlan::create($validated);
+
+        return $this->success($plan, 'Subscription plan created', 201);
+    }
+
+    /**
+     * PUT /api/subscription-plans/{id}
+     * Update an existing subscription plan (authenticated users).
+     */
+    public function updatePlan(Request $request, int $id): JsonResponse
+    {
+        $plan = SubscriptionPlan::find($id);
+
+        if (!$plan) {
+            return $this->error('Subscription plan not found', 404);
+        }
+
+        $validated = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'slug' => 'sometimes|string|max:255|unique:subscription_plans,slug,' . $id,
+            'description' => 'sometimes|string|max:1000',
+            'price' => 'sometimes|numeric|min:0',
+            'currency' => 'sometimes|string|size:3',
+            'interval' => 'sometimes|in:monthly,yearly',
+            'trial_days' => 'sometimes|integer|min:0|max:365',
+            'features' => 'sometimes|array',
+            'features.*' => 'string|max:255',
+            'is_active' => 'sometimes|boolean',
+        ]);
+
+        $plan->update($validated);
+
+        return $this->success($plan, 'Subscription plan updated');
+    }
+
+    /**
+     * DELETE /api/subscription-plans/{id}
+     * Delete a subscription plan (authenticated users).
+     */
+    public function deletePlan(Request $request, int $id): JsonResponse
+    {
+        $plan = SubscriptionPlan::find($id);
+
+        if (!$plan) {
+            return $this->error('Subscription plan not found', 404);
+        }
+
+        // Check if plan has active subscriptions
+        if ($plan->subscriptions()->where('status', 'active')->exists()) {
+            return $this->error('Cannot delete plan with active subscriptions', 422);
+        }
+
+        $plan->delete();
+
+        return $this->success(null, 'Subscription plan deleted');
+    }
 }

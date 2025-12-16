@@ -23,5 +23,8 @@ class DatabaseSeeder extends Seeder
             'username' => 'testuser',
             'email' => 'test@example.com',
         ]);
+
+        // Subscription plans are now managed via API endpoints
+        // $this->call(SubscriptionPlanSeeder::class);
     }
 }
