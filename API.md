@@ -57,6 +57,11 @@ These variables were added to `.env.example` and must be configured in your `.en
 -   FRONTEND_URL — Frontend SPA address for CORS/callbacks
 -   SANCTUM_STATEFUL_DOMAINS — If using Sanctum for SPA auth
 
+-   TURNSTILE_ENABLED — Set to `true` to enable server-side verification for Cloudflare Turnstile
+-   TURNSTILE_SITE_KEY — Public site key for the frontend integration
+-   TURNSTILE_SECRET — Server secret used to verify tokens
+-   TURNSTILE_VERIFY_URL — Optional: verification endpoint (default Cloudflare Turnstile verify URL)
+
 The repo already contains mail config examples (MAIL\_\* in `.env.example`) for sending messages.
 
 ---
@@ -67,62 +72,63 @@ All API endpoints are exposed from `routes/api.php` and served from the API subd
 
 ### All endpoints at a glance
 
-| Method              | URI                                    | Description                               | Auth  |
-| ------------------- | -------------------------------------- | ----------------------------------------- | ----- |
-| GET                 | `/ping`                                | Health check                              | No    |
-| **Authentication**  |                                        |                                           |       |
-| POST                | `/auth/register`                       | Register new user                         | No    |
-| POST                | `/auth/login`                          | Login with email/password                 | No    |
-| POST                | `/auth/logout`                         | Logout (revoke token)                     | Yes   |
-| GET                 | `/auth/google/redirect`                | Redirect to Google OAuth                  | No    |
-| GET                 | `/auth/google/callback`                | Google OAuth callback                     | No    |
-| POST                | `/auth/google/token`                   | Exchange Google code/credential for token | No    |
-| GET                 | `/auth/github/redirect`                | Redirect to GitHub OAuth                  | No    |
-| GET                 | `/auth/github/callback`                | GitHub OAuth callback                     | No    |
-| POST                | `/auth/github/token`                   | Exchange GitHub code/token for API token  | No    |
-| POST                | `/auth/password/forgot`                | Request password reset email              | No    |
-| POST                | `/auth/password/reset`                 | Reset password with token                 | No    |
-| POST                | `/auth/password/change`                | Change password (authenticated)           | Yes   |
-| POST                | `/auth/verify/send`                    | Send/resend verification email            | No    |
-| GET                 | `/auth/verify/{token}`                 | Verify email with token                   | No    |
-| GET                 | `/auth/link/google/redirect`           | Link Google account                       | Yes   |
-| GET                 | `/auth/link/google/callback`           | Google link callback                      | Yes   |
-| GET                 | `/auth/link/github/redirect`           | Link GitHub account                       | Yes   |
-| GET                 | `/auth/link/github/callback`           | GitHub link callback                      | Yes   |
-| POST                | `/auth/unlink`                         | Unlink OAuth provider                     | Yes   |
-| **User Profile**    |                                        |                                           |       |
-| GET                 | `/user`                                | Get current user profile                  | Yes   |
-| PUT                 | `/user`                                | Update user profile                       | Yes   |
-| POST                | `/user/avatar`                         | Upload avatar image                       | Yes   |
-| DELETE              | `/user`                                | Delete user account                       | Yes   |
-| GET                 | `/users/{id}/public`                   | Get public profile                        | No    |
-| **Mail**            |                                        |                                           |       |
-| POST                | `/mail/contact`                        | Send contact message                      | No    |
-| POST                | `/mail/newsletter`                     | Subscribe to newsletter                   | No    |
-| GET                 | `/mail/newsletter/verify/{token}`      | Verify newsletter subscription            | No    |
-| GET                 | `/mail/newsletter/unsubscribe/{token}` | Unsubscribe from newsletter               | No    |
-| POST                | `/mail/password-reset`                 | Send password reset email                 | No    |
-| **AI / Gorq**       |                                        |                                           |       |
-| POST                | `/ai/generate`                         | Generate AI response                      | No    |
-| GET                 | `/ai/jobs/{id}/status`                 | Get async AI job status                   | No    |
-| **Maps**            |                                        |                                           |       |
-| POST                | `/maps/pin`                            | Generate Google Maps embed URL            | No    |
-| **Payments**        |                                        |                                           |       |
-| POST                | `/subscriptions`                       | Pay for a plan (purchase)                 | Yes   |
-| POST                | `/payments/process`                    | Process one-time payment                  | Yes   |
-| GET                 | `/payments`                            | List payment history                      | Yes   |
-| GET                 | `/payments/last-plan`                  | Get last purchased plan                   | Yes   |
-| GET                 | `/payments/{transactionId}`            | Verify/get payment details                | Yes   |
-| POST                | `/payments/refund/{transactionId}`     | Request refund                            | Yes   |
-| POST                | `/payments/revert-plan`                | Revert/clear current plan                 | Yes   |
-| POST                | `/payments/webhook`                    | Payment webhook handler                   | No    |
-| GET                 | `/subscription-plans`                  | List available plans                      | No    |
-| GET                 | `/subscription-plans/{slug}`           | Get plan details                          | No    |
-| POST                | `/subscription-plans`                  | Create new plan                           | Yes   |
-| PUT                 | `/subscription-plans/{id}`             | Update plan                               | Yes   |
-| DELETE              | `/subscription-plans/{id}`             | Delete plan                               | Yes   |
-| **Admin/Dev Tools** |                                        |                                           |       |
-| POST                | `/admin/migrate`                       | Run migrations via HTTP                   | Token |
+| Method              | URI                                    | Description                                | Auth  |
+| ------------------- | -------------------------------------- | ------------------------------------------ | ----- |
+| GET                 | `/ping`                                | Health check                               | No    |
+| **Authentication**  |                                        |                                            |       |
+| POST                | `/auth/register`                       | Register new user                          | No    |
+| POST                | `/auth/login`                          | Login with email/password                  | No    |
+| POST                | `/auth/logout`                         | Logout (revoke token)                      | Yes   |
+| GET                 | `/auth/google/redirect`                | Redirect to Google OAuth                   | No    |
+| GET                 | `/auth/google/callback`                | Google OAuth callback                      | No    |
+| POST                | `/auth/google/token`                   | Exchange Google code/credential for token  | No    |
+| GET                 | `/auth/github/redirect`                | Redirect to GitHub OAuth                   | No    |
+| GET                 | `/auth/github/callback`                | GitHub OAuth callback                      | No    |
+| POST                | `/auth/github/token`                   | Exchange GitHub code/token for API token   | No    |
+| POST                | `/auth/password/forgot`                | Request password reset email               | No    |
+| POST                | `/auth/password/reset`                 | Reset password with token                  | No    |
+| POST                | `/auth/password/change`                | Change password (authenticated)            | Yes   |
+| POST                | `/auth/verify/send`                    | Send/resend verification email             | No    |
+| GET                 | `/auth/verify/{token}`                 | Verify email with token                    | No    |
+| GET                 | `/auth/link/google/redirect`           | Link Google account                        | Yes   |
+| GET                 | `/auth/link/google/callback`           | Google link callback                       | Yes   |
+| GET                 | `/auth/link/github/redirect`           | Link GitHub account                        | Yes   |
+| GET                 | `/auth/link/github/callback`           | GitHub link callback                       | Yes   |
+| POST                | `/auth/unlink`                         | Unlink OAuth provider                      | Yes   |
+| **User Profile**    |                                        |                                            |       |
+| GET                 | `/user`                                | Get current user profile                   | Yes   |
+| PUT                 | `/user`                                | Update user profile                        | Yes   |
+| POST                | `/user/avatar`                         | Upload avatar image                        | Yes   |
+| DELETE              | `/user`                                | Delete user account                        | Yes   |
+| GET                 | `/users/{id}/public`                   | Get public profile                         | No    |
+| **Mail**            |                                        |                                            |       |
+| POST                | `/mail/contact`                        | Send contact message                       | No    |
+| POST                | `/mail/newsletter`                     | Subscribe to newsletter                    | No    |
+| GET                 | `/mail/newsletter/verify/{token}`      | Verify newsletter subscription             | No    |
+| GET                 | `/mail/newsletter/unsubscribe/{token}` | Unsubscribe from newsletter                | No    |
+| POST                | `/mail/password-reset`                 | Send password reset email                  | No    |
+| **AI / Gorq**       |                                        |                                            |       |
+| POST                | `/ai/generate`                         | Generate AI response                       | No    |
+| GET                 | `/ai/jobs/{id}/status`                 | Get async AI job status                    | No    |
+| **Maps**            |                                        |                                            |       |
+| POST                | `/maps/pin`                            | Generate Google Maps embed URL             | No    |
+| POST                | `/captcha/verify`                      | Verify captcha token (turnstile/recaptcha) | No    |
+| **Payments**        |                                        |                                            |       |
+| POST                | `/subscriptions`                       | Pay for a plan (purchase)                  | Yes   |
+| POST                | `/payments/process`                    | Process one-time payment                   | Yes   |
+| GET                 | `/payments`                            | List payment history                       | Yes   |
+| GET                 | `/payments/last-plan`                  | Get last purchased plan                    | Yes   |
+| GET                 | `/payments/{transactionId}`            | Verify/get payment details                 | Yes   |
+| POST                | `/payments/refund/{transactionId}`     | Request refund                             | Yes   |
+| POST                | `/payments/revert-plan`                | Revert/clear current plan                  | Yes   |
+| POST                | `/payments/webhook`                    | Payment webhook handler                    | No    |
+| GET                 | `/subscription-plans`                  | List available plans                       | No    |
+| GET                 | `/subscription-plans/{slug}`           | Get plan details                           | No    |
+| POST                | `/subscription-plans`                  | Create new plan                            | Yes   |
+| PUT                 | `/subscription-plans/{id}`             | Update plan                                | Yes   |
+| DELETE              | `/subscription-plans/{id}`             | Delete plan                                | Yes   |
+| **Admin/Dev Tools** |                                        |                                            |       |
+| POST                | `/admin/migrate`                       | Run migrations via HTTP                    | Token |
 
 ---
 
@@ -166,6 +172,8 @@ All API endpoints are exposed from `routes/api.php` and served from the API subd
         -   `email` (string, required, valid email, unique) — user's email address
         -   `password_hash` (string, required, 64 hex chars) — SHA-256 hash of the password
         -   `password_hash_confirmation` (string, required) — must match password_hash
+        -   `turnstile_token` (string, optional) — Cloudflare Turnstile token (required when enabled)
+        -   `recaptcha_token` (string, optional) — Google reCAPTCHA token (required when enabled)
     -   **Behavior:**
         -   Creates a new user account with the provided details
         -   Automatically sends an email verification link
@@ -400,6 +408,8 @@ Behavior is identical to Google OAuth flow but uses the `github` Socialite drive
 
     -   **Body (JSON):**
         -   `email` (string, required, valid email) — user's email address
+        -   `turnstile_token` (string, optional) — Cloudflare Turnstile token (required when enabled)
+        -   `recaptcha_token` (string, optional) — Google reCAPTCHA token (required when enabled)
     -   **Behavior:**
         -   Creates a password reset token stored in `password_reset_tokens` (valid for ~2 hours)
         -   Emails the frontend password-reset link to the user if the account exists
@@ -715,9 +725,12 @@ Behavior is identical to Google OAuth flow but uses the `github` Socialite drive
         -   `email` (string, required, valid email) — sender's email address
         -   `subject` (string, required, max 255) — message subject
         -   `message` (string, required, max 1000) — message content
+        -   `turnstile_token` (string, optional) — Cloudflare Turnstile response token
+        -   `recaptcha_token` (string, optional) — Google reCAPTCHA response token
     -   **Behavior:**
         -   Sends a contact email to the configured admin email address
         -   Includes sender information in the email
+        -   If captcha verification is enabled (via `TURNSTILE_ENABLED` or `RECAPTCHA_ENABLED`), a corresponding token must be provided and validated
     -   **Success (200):**
         ```json
         {
@@ -1449,6 +1462,64 @@ When request data fails validation:
         }
         ```
 
+### Captcha / Turnstile & reCAPTCHA
+
+-   POST /captcha/verify
+
+    -   **Body (JSON):**
+        -   `provider` (string, optional): `turnstile` (default) or `recaptcha`
+        -   `token` (string, required): Token returned by the frontend captcha widget
+        -   `action` (string, optional): Action name for Turnstile (recommended)
+    -   **Behavior:**
+        -   Verifies captcha tokens server-side with the configured provider
+        -   Returns success/failure and provider response details
+    -   **Success (200):**
+
+        ```json
+        {
+            "status": "success",
+            "message": "Captcha verified",
+            "data": {
+                "success": true,
+                "action": "contact",
+                "hostname": "example.com"
+            },
+            "code": 200,
+            "timestamp": "2025-12-17T12:00:00Z"
+        }
+        ```
+
+    -   **Failure (422):**
+        ```json
+        {
+            "status": "error",
+            "message": "Captcha verification failed",
+            "errors": {
+                "error": ["No secret configured"]
+            },
+            "code": 422,
+            "timestamp": "2025-12-17T12:00:00Z"
+        }
+        ```
+
+#### Example
+
+Turnstile verification (default provider):
+
+```bash
+curl -X POST https://api.example.com/captcha/verify \
+  -H "Content-Type: application/json" \
+  -d '{"token":"<turnstile-token>", "action":"contact"}'
+```
+
+reCAPTCHA verification:
+
+```bash
+curl -X POST https://api.example.com/captcha/verify \
+  -H "Content-Type: application/json" \
+  -d '{"provider":"recaptcha", "token":"<recaptcha-token>"}'
+```
+
 ### Developer tools
 
 If you do not have terminal access on the server, there is a safe, token-protected HTTP endpoint for running migrations using Artisan. It is disabled by default and should be enabled and used with caution in production environments.
@@ -1588,3 +1659,40 @@ These endpoints allow authenticated users to manage subscription plans through t
             "timestamp": "2025-12-12T12:00:00Z"
         }
         ```
+
+#### Examples
+
+Create a subscription plan (authenticated):
+
+```bash
+curl -X POST https://api.example.com/subscription-plans \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Pro",
+    "slug": "pro",
+    "description": "Pro plan",
+    "price": 19.99,
+    "currency": "USD",
+    "interval": "monthly",
+    "trial_days": 14,
+    "features": ["Unlimited AI", "Priority support"],
+    "is_active": true
+}'
+```
+
+Update a subscription plan (authenticated):
+
+```bash
+curl -X PUT https://api.example.com/subscription-plans/1 \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"price": 24.99}'
+```
+
+Delete a subscription plan (authenticated):
+
+```bash
+curl -X DELETE https://api.example.com/subscription-plans/1 \
+  -H "Authorization: Bearer <token>"
+```

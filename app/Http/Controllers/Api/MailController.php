@@ -13,22 +13,30 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use App\Rules\Turnstile;
 
 class MailController extends ApiController
 {
     public function contact(Request $request)
     {
-        $data = $request->validate([
+        $rules = [
             'name' => 'required|string|max:255',
             'email' => 'required|email',
             'message' => 'required|string',
-        ]);
+        ];
 
-        $to = env('MAIL_TO_ADDRESS');
+        if (config('services.turnstile.enabled')) {
+            $rules['turnstile_token'] = ['required', new Turnstile('contact')];
+        } else {
+            $rules['turnstile_token'] = ['sometimes', new Turnstile('contact')];
+        }
 
-        Mail::raw("Contact message from {$data['name']} ({$data['email']})\n\n{$data['message']}", function ($m) use ($to) {
-            $m->to($to)->subject('Contact form');
-        });
+        $data = $request->validate($rules);
+
+        $to = config('mail.to_address', env('MAIL_TO_ADDRESS')) ?: config('mail.from.address', env('MAIL_FROM_ADDRESS'));
+
+        // Use a Mailable so it can be asserted in tests
+        Mail::to($to)->send(new \App\Mail\ContactMail($data['name'], $data['email'], $data['message']));
 
         return $this->success(null, 'Contact message queued/sent');
     }
@@ -38,10 +46,18 @@ class MailController extends ApiController
      */
     public function newsletter(Request $request)
     {
-        $data = $request->validate([
+        $rules = [
             'email' => 'required|email',
             'name' => 'sometimes|string|max:255',
-        ]);
+        ];
+
+        if (config('services.turnstile.enabled')) {
+            $rules['turnstile_token'] = ['required', new Turnstile('newsletter')];
+        } else {
+            $rules['turnstile_token'] = ['sometimes', new Turnstile('newsletter')];
+        }
+
+        $data = $request->validate($rules);
 
         $email = strtolower(trim($data['email']));
         $name = $data['name'] ?? null;

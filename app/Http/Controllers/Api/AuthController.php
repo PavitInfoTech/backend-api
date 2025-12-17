@@ -15,19 +15,28 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\PasswordResetMail;
 use App\Mail\EmailVerificationMail;
 use Illuminate\Support\Facades\DB;
+use App\Rules\Turnstile;
 
 class AuthController extends ApiController
 {
     public function register(Request $request)
     {
-        $v = Validator::make($request->all(), [
+        $rules = [
             'username' => 'required|string|max:255|unique:users,username',
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password_hash' => 'required|string|size:64', // SHA-256 hash (64 hex chars)
             'password_hash_confirmation' => 'required|string|same:password_hash',
-        ]);
+        ];
+
+        if (config('services.turnstile.enabled')) {
+            $rules['turnstile_token'] = ['required', new \App\Rules\Turnstile('register')];
+        } else {
+            $rules['turnstile_token'] = ['sometimes', new \App\Rules\Turnstile('register')];
+        }
+
+        $v = Validator::make($request->all(), $rules);
 
         if ($v->fails()) {
             return $this->validationError($v->errors());
@@ -306,7 +315,14 @@ class AuthController extends ApiController
      */
     public function sendPasswordReset(Request $request)
     {
-        $data = $request->validate(['email' => 'required|email']);
+        $rules = ['email' => 'required|email'];
+        if (config('services.turnstile.enabled')) {
+            $rules['turnstile_token'] = ['required', new Turnstile('password_reset')];
+        } else {
+            $rules['turnstile_token'] = ['sometimes', new Turnstile('password_reset')];
+        }
+
+        $data = $request->validate($rules);
 
         $user = User::where('email', $data['email'])->first();
         if (! $user) {

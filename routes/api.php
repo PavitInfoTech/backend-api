@@ -137,3 +137,6 @@ Route::fallback(function () {
 // Public AI endpoints (moved out of authenticated group)
 Route::post('/ai/generate', [\App\Http\Controllers\Api\AIController::class, 'generate'])->middleware('throttle:ai');
 Route::get('/ai/jobs/{id}/status', [\App\Http\Controllers\Api\AIController::class, 'jobStatus']);
+
+// Captcha endpoint (public)
+Route::post('/captcha/verify', [\App\Http\Controllers\Api\CaptchaController::class, 'verify']);

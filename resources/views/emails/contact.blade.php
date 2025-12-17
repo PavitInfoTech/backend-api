@@ -1,0 +1,1 @@
+<!-- Contact email template intentionally removed; backend sends raw html via Mailable -->
