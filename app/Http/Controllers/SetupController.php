@@ -83,6 +83,13 @@ class SetupController extends Controller
                 'description' => 'Application installed flag',
             ]);
 
+            // Persist APP_INSTALLED=true to .env so restarts honour installed state
+            try {
+                $this->setEnvValue('APP_INSTALLED', 'true');
+            } catch (\Throwable $e) {
+                // ignore non-fatal
+            }
+
             session()->flash('success', 'Setup completed successfully! You can now login.');
             return redirect()->route('admin.login');
         } catch (\Exception $e) {
@@ -118,6 +125,13 @@ class SetupController extends Controller
                 'category' => 'general',
                 'description' => 'Application installed flag',
             ]);
+
+            // Persist APP_INSTALLED=true to .env so restarts honour installed state
+            try {
+                $this->setEnvValue('APP_INSTALLED', 'true');
+            } catch (\Throwable $e) {
+                // ignore
+            }
 
             session()->flash('success', 'Admin account created successfully! You can now login.');
             return redirect()->route('admin.login');
@@ -181,5 +195,27 @@ class SetupController extends Controller
     private function isEnvExists()
     {
         return File::exists(base_path('.env'));
+    }
+
+    /**
+     * Set or replace a value in the .env file. Creates .env if missing.
+     */
+    private function setEnvValue(string $key, string $value)
+    {
+        $path = base_path('.env');
+        $line = $key . '=' . $value;
+        if (!File::exists($path)) {
+            File::put($path, $line . PHP_EOL);
+            return;
+        }
+
+        $contents = File::get($path);
+        if (preg_match('/^' . preg_quote($key, '/') . '\s*=.*$/m', $contents)) {
+            $contents = preg_replace('/^' . preg_quote($key, '/') . '\s*=.*$/m', $line, $contents);
+        } else {
+            $contents .= PHP_EOL . $line . PHP_EOL;
+        }
+
+        File::put($path, $contents);
     }
 }
