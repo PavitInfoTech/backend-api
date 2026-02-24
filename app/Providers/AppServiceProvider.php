@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Route as RouteFacade;
 use App\Http\Middleware\EnsureApiResponseIsJson;
+use Illuminate\Support\Facades\Schema;
+use App\Models\AppSettings;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -36,5 +38,55 @@ class AppServiceProvider extends ServiceProvider
         $this->app->afterResolving('router', function ($router) {
             $this->app['router']->pushMiddlewareToGroup('api', EnsureApiResponseIsJson::class);
         });
+
+        // Load runtime service configuration from DB-backed AppSettings if available.
+        // This allows storing API keys/credentials in the database while keeping
+        // packages (Socialite, Gorq, etc.) configured via `config('services')`.
+        try {
+            if (Schema::hasTable('app_settings')) {
+                $get = function ($k, $d = null) {
+                    return AppSettings::getSetting($k, $d);
+                };
+
+                // Google
+                $gId = $get('google_client_id');
+                $gSecret = $get('google_client_secret');
+                $gRedirect = $get('google_redirect') ?? ($get('frontend_url') ? rtrim($get('frontend_url'), '/') . '/api/auth/google/callback' : null);
+                if ($gId) config(['services.google.client_id' => $gId]);
+                if ($gSecret) config(['services.google.client_secret' => $gSecret]);
+                if ($gRedirect) config(['services.google.redirect' => $gRedirect]);
+
+                // GitHub
+                $hId = $get('github_client_id');
+                $hSecret = $get('github_client_secret');
+                $hRedirect = $get('github_redirect') ?? ($get('frontend_url') ? rtrim($get('frontend_url'), '/') . '/api/auth/github/callback' : null);
+                if ($hId) config(['services.github.client_id' => $hId]);
+                if ($hSecret) config(['services.github.client_secret' => $hSecret]);
+                if ($hRedirect) config(['services.github.redirect' => $hRedirect]);
+
+                // Gorq
+                $gorqKey = $get('gorq_api_key');
+                $gorqBase = $get('gorq_base_url');
+                if ($gorqKey) config(['services.gorq.key' => $gorqKey]);
+                if ($gorqBase) config(['services.gorq.base_url' => $gorqBase]);
+
+                // Turnstile / reCAPTCHA
+                $turnEnabled = $get('turnstile_enabled');
+                if (!is_null($turnEnabled)) config(['services.turnstile.enabled' => boolval($turnEnabled)]);
+                $turnSite = $get('turnstile_site_key');
+                $turnSecret = $get('turnstile_secret');
+                if ($turnSite) config(['services.turnstile.site_key' => $turnSite]);
+                if ($turnSecret) config(['services.turnstile.secret' => $turnSecret]);
+
+                $recEnabled = $get('recaptcha_enabled');
+                if (!is_null($recEnabled)) config(['services.recaptcha.enabled' => boolval($recEnabled)]);
+                $recSite = $get('recaptcha_site_key');
+                $recSecret = $get('recaptcha_secret');
+                if ($recSite) config(['services.recaptcha.site_key' => $recSite]);
+                if ($recSecret) config(['services.recaptcha.secret' => $recSecret]);
+            }
+        } catch (\Throwable $e) {
+            // keep boot resilient during first-run when DB isn't ready
+        }
     }
 }

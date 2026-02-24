@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\File;
 
 class SettingsController extends Controller
 {
@@ -20,6 +21,28 @@ class SettingsController extends Controller
         $adminCredentials = AdminCredential::all();
 
         return view('settings.index', compact('settings', 'adminCredentials'));
+    }
+
+    /**
+     * Set or replace a value in the .env file. Creates .env if missing.
+     */
+    private function setEnvValue(string $key, string $value)
+    {
+        $path = base_path('.env');
+        $line = $key . '=' . $value;
+        if (!File::exists($path)) {
+            File::put($path, $line . PHP_EOL);
+            return;
+        }
+
+        $contents = File::get($path);
+        if (preg_match('/^' . preg_quote($key, '/') . '\s*=.*$/m', $contents)) {
+            $contents = preg_replace('/^' . preg_quote($key, '/') . '\s*=.*$/m', $line, $contents);
+        } else {
+            $contents .= PHP_EOL . $line . PHP_EOL;
+        }
+
+        File::put($path, $contents);
     }
 
     /**
@@ -223,6 +246,39 @@ class SettingsController extends Controller
 
             // Frontend Settings
             $this->storeSetting('frontend_url', $request->input('frontend_url'), 'general', 'Frontend URL');
+
+            // Optionally persist selected values into the .env file so
+            // external packages that read env() (e.g. Socialite) can pick them up.
+            if ($request->has('write_env')) {
+                try {
+                    if ($request->filled('google_client_id')) $this->setEnvValue('GOOGLE_CLIENT_ID', $request->input('google_client_id'));
+                    if ($request->filled('google_client_secret')) $this->setEnvValue('GOOGLE_CLIENT_SECRET', $request->input('google_client_secret'));
+
+                    if ($request->filled('github_client_id')) $this->setEnvValue('GITHUB_CLIENT_ID', $request->input('github_client_id'));
+                    if ($request->filled('github_client_secret')) $this->setEnvValue('GITHUB_CLIENT_SECRET', $request->input('github_client_secret'));
+
+                    if ($request->filled('frontend_url')) {
+                        $this->setEnvValue('FRONTEND_URL', $request->input('frontend_url'));
+                        $gRedirect = rtrim($request->input('frontend_url'), '/') . '/api/auth/google/callback';
+                        $hRedirect = rtrim($request->input('frontend_url'), '/') . '/api/auth/github/callback';
+                        $this->setEnvValue('GOOGLE_REDIRECT', $gRedirect);
+                        $this->setEnvValue('GITHUB_REDIRECT', $hRedirect);
+                    }
+
+                    if ($request->filled('gorq_api_key')) $this->setEnvValue('GORQ_API_KEY', $request->input('gorq_api_key'));
+                    if ($request->filled('gorq_base_url')) $this->setEnvValue('GORQ_BASE_URL', $request->input('gorq_base_url'));
+
+                    $this->setEnvValue('TURNSTILE_ENABLED', $request->has('turnstile_enabled') ? 'true' : 'false');
+                    if ($request->filled('turnstile_site_key')) $this->setEnvValue('TURNSTILE_SITE_KEY', $request->input('turnstile_site_key'));
+                    if ($request->filled('turnstile_secret')) $this->setEnvValue('TURNSTILE_SECRET', $request->input('turnstile_secret'));
+
+                    $this->setEnvValue('RECAPTCHA_ENABLED', $request->has('recaptcha_enabled') ? 'true' : 'false');
+                    if ($request->filled('recaptcha_site_key')) $this->setEnvValue('RECAPTCHA_SITE_KEY', $request->input('recaptcha_site_key'));
+                    if ($request->filled('recaptcha_secret')) $this->setEnvValue('RECAPTCHA_SECRET', $request->input('recaptcha_secret'));
+                } catch (\Throwable $e) {
+                    // Non-fatal: ignore env write errors
+                }
+            }
 
             session()->flash('success', 'Auth & API settings updated successfully!');
             return redirect()->route('settings.auth');

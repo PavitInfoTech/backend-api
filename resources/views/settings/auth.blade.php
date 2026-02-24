@@ -145,8 +145,19 @@
             </div>
         </div>
 
-        <div class="flex justify-end border-t pt-6">
-            <button type="submit" class="bg-purple-600 text-white py-2 px-6 rounded-md hover:bg-purple-700 transition duration-200 font-medium">Save Changes</button>
+        <div class="border-t pt-6">
+            <div class="flex items-start space-x-3">
+                <div class="flex items-center h-5">
+                    <input id="write_env" name="write_env" type="checkbox" {{ old('write_env') ? 'checked' : '' }} class="h-4 w-4 text-purple-600 border-gray-300 rounded">
+                </div>
+                <div class="ml-3 text-sm">
+                    <label for="write_env" class="font-medium text-gray-700">Also write selected keys to .env</label>
+                    <p class="text-gray-500">When checked, selected OAuth/API keys will be persisted to the <span class="font-mono">.env</span> file. Note: some services require restarting the app or clearing config cache for changes to take effect.</p>
+                </div>
+            </div>
+            <div class="flex justify-end mt-4">
+                <button type="submit" class="bg-purple-600 text-white py-2 px-6 rounded-md hover:bg-purple-700 transition duration-200 font-medium">Save Changes</button>
+            </div>
         </div>
     </form>
 </div>
