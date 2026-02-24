@@ -14,6 +14,12 @@ class AdminAuthController extends Controller
      */
     public function showLogin()
     {
+        // If the application is not yet installed, redirect to setup
+        $installed = env('APP_INSTALLED');
+        if (!$installed || $installed === 'false') {
+            return redirect()->route('setup.index');
+        }
+
         if (session('admin')) {
             return redirect()->route('settings.index');
         }
@@ -26,6 +32,12 @@ class AdminAuthController extends Controller
      */
     public function login(Request $request)
     {
+        // Prevent DB access when app isn't installed yet
+        $installed = env('APP_INSTALLED');
+        if (!$installed || $installed === 'false') {
+            return redirect()->route('setup.index');
+        }
+
         $validator = Validator::make($request->all(), [
             'username' => 'required|string',
             'password' => 'required|string',
