@@ -28,22 +28,50 @@ try {
     if (file_exists($envPath)) {
         $contents = file_get_contents($envPath);
         $hasKey = preg_match('/^APP_KEY\s*=\s*(.+)$/m', $contents, $matches);
-        $keyVal = $hasKey ? trim($matches[1]) : '';
-        if (!$hasKey || $keyVal === '' || $keyVal === 'null') {
-            $random = base64_encode(random_bytes(32));
+        $rawKey = $hasKey ? trim($matches[1]) : '';
+        // strip surrounding quotes if present
+        $keyVal = $rawKey !== '' ? trim($rawKey, "'\" \t\r\n") : '';
+
+        // determine expected key length from config/app.php if possible
+        $expectedLen = 32; // default to 32 bytes (AES-256)
+        $configApp = @file_get_contents(__DIR__ . '/../config/app.php');
+        if ($configApp !== false) {
+            if (preg_match("/'cipher'\s*=>\s*'([^']+)'/", $configApp, $cMatch)) {
+                $cipher = strtoupper($cMatch[1]);
+                if (strpos($cipher, '128') !== false) {
+                    $expectedLen = 16;
+                } else {
+                    $expectedLen = 32;
+                }
+            }
+        }
+
+        $valid = false;
+        if ($keyVal !== '') {
+            if (str_starts_with($keyVal, 'base64:')) {
+                $decoded = base64_decode(substr($keyVal, 7), true);
+                $valid = $decoded !== false && strlen($decoded) === $expectedLen;
+            } else {
+                // raw key provided: check length
+                $valid = strlen($keyVal) === $expectedLen;
+            }
+        }
+
+        if (!$valid) {
+            // generate a new key that matches expected length
+            $randomBytes = random_bytes($expectedLen);
+            $random = base64_encode($randomBytes);
             $newKey = 'base64:' . $random;
             if ($hasKey) {
                 $contents = preg_replace('/^APP_KEY\s*=.*$/m', 'APP_KEY=' . $newKey, $contents);
             } else {
                 $contents .= PHP_EOL . 'APP_KEY=' . $newKey . PHP_EOL;
             }
-            // attempt to persist the new key; ignore failures (runtime env will still be set)
             @file_put_contents($envPath, $contents);
             putenv('APP_KEY=' . $newKey);
             $_ENV['APP_KEY'] = $newKey;
             $_SERVER['APP_KEY'] = $newKey;
         } else {
-            // ensure runtime has the key available
             putenv('APP_KEY=' . $keyVal);
             $_ENV['APP_KEY'] = $keyVal;
             $_SERVER['APP_KEY'] = $keyVal;
