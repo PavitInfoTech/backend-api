@@ -105,6 +105,51 @@ if ($isMigrationEndpoint) {
     $_SERVER['CACHE_DRIVER'] = 'file';
 }
 
+// If the app uses SQLite and the database file does not yet exist, avoid
+// using DB-backed session/cache drivers so the first request (e.g. /setup)
+// does not attempt to read the database. Switch to `file` drivers at runtime.
+try {
+    $envContents = file_exists($envPath) ? file_get_contents($envPath) : '';
+    // simple parser for key=value lines
+    $getEnv = function ($key) use ($envContents) {
+        if (!$envContents) {
+            return getenv($key) ?: null;
+        }
+        if (preg_match('/^' . preg_quote($key, '/') . '\s*=\s*(.*)$/m', $envContents, $m)) {
+            return trim($m[1], "'"."\""." \t\r\n");
+        }
+        return getenv($key) ?: null;
+    };
+
+    $dbConn = $getEnv('DB_CONNECTION') ?: 'sqlite';
+    $dbDatabase = $getEnv('DB_DATABASE') ?: database_path('database.sqlite');
+    $sessionDriver = $getEnv('SESSION_DRIVER') ?: 'file';
+
+    if (strtolower($dbConn) === 'sqlite') {
+        // If DB path is relative, make it absolute relative to project root
+        if (!preg_match('#^(/|[A-Za-z]:\\)#', $dbDatabase)) {
+            $dbDatabase = __DIR__ . '/../' . ltrim($dbDatabase, "./");
+        }
+        if (!file_exists($dbDatabase)) {
+            // switch session/cache/queue to file/sync to avoid DB access
+            putenv('SESSION_DRIVER=file');
+            putenv('CACHE_DRIVER=file');
+            putenv('CACHE_STORE=file');
+            putenv('QUEUE_CONNECTION=sync');
+            $_ENV['SESSION_DRIVER'] = 'file';
+            $_ENV['CACHE_DRIVER'] = 'file';
+            $_ENV['CACHE_STORE'] = 'file';
+            $_ENV['QUEUE_CONNECTION'] = 'sync';
+            $_SERVER['SESSION_DRIVER'] = 'file';
+            $_SERVER['CACHE_DRIVER'] = 'file';
+            $_SERVER['CACHE_STORE'] = 'file';
+            $_SERVER['QUEUE_CONNECTION'] = 'sync';
+        }
+    }
+} catch (\Throwable $e) {
+    // Non-fatal during early bootstrap
+}
+
 // Bootstrap Laravel and handle the request...
 /** @var Application $app */
 $app = require_once __DIR__ . '/../bootstrap/app.php';

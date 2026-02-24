@@ -17,12 +17,18 @@ class SetupController extends Controller
      */
     public function index()
     {
-        // Check if .env exists
-        if (! $this->isEnvExists()) {
+        // If .env does not exist OR the application is not marked installed,
+        // show the full setup form so the operator can provide DB and admin
+        // credentials. We avoid querying the database here because it may not
+        // be initialized yet.
+        $envExists = $this->isEnvExists();
+        $appInstalled = env('APP_INSTALLED');
+
+        if (! $envExists || !$appInstalled || $appInstalled === 'false') {
             return view('setup.index');
         }
 
-        // Check if admin credentials exist
+        // At this point the environment reports installed; safe to check DB.
         if (AdminCredential::active()->exists()) {
             return redirect()->route('login');
         }
@@ -153,6 +159,7 @@ class SetupController extends Controller
 
         $envContent .= "# API Settings\n";
         $envContent .= "API_PREFIX_FALLBACK=true\n";
+        $envContent .= "APP_INSTALLED=false\n";
 
         File::put(base_path('.env'), $envContent);
     }
