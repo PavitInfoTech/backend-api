@@ -215,6 +215,7 @@ class SettingsController extends Controller
             'gorq_base_url' => 'nullable|url',
             'gorq_default_model' => 'nullable|string',
             'frontend_url' => 'nullable|url',
+            'allowed_origins' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -246,6 +247,23 @@ class SettingsController extends Controller
 
             // Frontend Settings
             $this->storeSetting('frontend_url', $request->input('frontend_url'), 'general', 'Frontend URL');
+
+            // Allowed origins: accept newline or comma separated input and store as JSON array
+            $allowed = [];
+            if ($request->filled('allowed_origins')) {
+                $raw = $request->input('allowed_origins');
+                $parts = preg_split('/[\r\n,]+/', $raw);
+                foreach ($parts as $p) {
+                    $t = trim($p);
+                    if ($t !== '') $allowed[] = $t;
+                }
+            }
+            AppSettings::setSetting('allowed_origins', $allowed, [
+                'category' => 'general',
+                'setting_type' => 'json',
+                'is_encrypted' => false,
+                'description' => 'CORS allowed origins',
+            ]);
 
             // Optionally persist selected values into the .env file so
             // external packages that read env() (e.g. Socialite) can pick them up.

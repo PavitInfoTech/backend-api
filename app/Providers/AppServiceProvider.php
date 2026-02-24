@@ -84,6 +84,23 @@ class AppServiceProvider extends ServiceProvider
                 $recSecret = $get('recaptcha_secret');
                 if ($recSite) config(['services.recaptcha.site_key' => $recSite]);
                 if ($recSecret) config(['services.recaptcha.secret' => $recSecret]);
+
+                // CORS allowed origins (stored as JSON array in settings)
+                $allowed = $get('allowed_origins');
+                if ($allowed) {
+                    if (is_string($allowed)) {
+                        $decoded = json_decode($allowed, true);
+                        $allowedArr = is_array($decoded) ? $decoded : [$allowed];
+                    } elseif (is_array($allowed)) {
+                        $allowedArr = $allowed;
+                    } else {
+                        $allowedArr = [];
+                    }
+
+                    if (!empty($allowedArr)) {
+                        config(['cors.allowed_origins' => $allowedArr]);
+                    }
+                }
             }
         } catch (\Throwable $e) {
             // keep boot resilient during first-run when DB isn't ready
