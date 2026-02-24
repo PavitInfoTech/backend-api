@@ -23,6 +23,21 @@ try {
         copy($envExample, $envPath);
         // make sure copied file is readable by the process
         @chmod($envPath, 0644);
+        // If the default .env.example uses DB-backed sessions (common),
+        // adjust the copied .env to use file drivers until setup completes.
+        try {
+            $tmp = file_get_contents($envPath);
+            $tmp = preg_replace('/^CACHE_DRIVER\s*=.*$/m', 'CACHE_DRIVER=file', $tmp);
+            $tmp = preg_replace('/^SESSION_DRIVER\s*=.*$/m', 'SESSION_DRIVER=file', $tmp);
+            $tmp = preg_replace('/^QUEUE_CONNECTION\s*=.*$/m', 'QUEUE_CONNECTION=sync', $tmp);
+            // ensure APP_INSTALLED flag exists and is false
+            if (!preg_match('/^APP_INSTALLED\s*=.*$/m', $tmp)) {
+                $tmp .= PHP_EOL . 'APP_INSTALLED=false' . PHP_EOL;
+            }
+            @file_put_contents($envPath, $tmp);
+        } catch (\Throwable $e) {
+            // ignore
+        }
     }
 
     if (file_exists($envPath)) {
