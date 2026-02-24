@@ -41,6 +41,9 @@ class SetupController extends Controller
      */
     public function storeEnv(Request $request)
     {
+        // Avoid database-dependent validation (like `unique:`) here because the
+        // database may not yet exist during initial setup. We'll perform basic
+        // format checks and create the DB/migrate later.
         $validator = Validator::make($request->all(), [
             'app_name' => 'required|string',
             'app_url' => 'required|url',
@@ -49,7 +52,7 @@ class SetupController extends Controller
             'db_database' => 'required|string',
             'db_username' => 'required|string',
             'db_password' => 'required|string',
-            'admin_username' => 'required|string|unique:admin_credentials,username',
+            'admin_username' => 'required|string',
             'admin_password' => 'required|string|min:8|confirmed',
         ]);
 
