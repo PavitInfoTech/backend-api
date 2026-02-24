@@ -64,6 +64,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Use custom Authenticate middleware that returns JSON 401 instead of redirecting
         $middleware->alias([
             'auth' => \App\Http\Middleware\Authenticate::class,
+            'auth.admin' => \App\Http\Middleware\AdminAuthMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
