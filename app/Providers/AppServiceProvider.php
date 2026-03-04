@@ -45,24 +45,47 @@ class AppServiceProvider extends ServiceProvider
         try {
             if (Schema::hasTable('app_settings')) {
                 $get = function ($k, $d = null) {
-                    return AppSettings::getSetting($k, $d);
+                    $val = AppSettings::getSetting($k, $d);
+                    // Log to help debug
+                    if (!empty($val)) {
+                        \Log::debug('[AppServiceProvider] Loaded setting: ' . $k . ' = ' . (strlen((string)$val) > 50 ? substr((string)$val, 0, 50) . '...' : $val));
+                    }
+                    return $val;
                 };
 
                 // Google
                 $gId = $get('google_client_id');
                 $gSecret = $get('google_client_secret');
                 $gRedirect = $get('google_redirect') ?? ($get('frontend_url') ? rtrim($get('frontend_url'), '/') . '/api/auth/google/callback' : null);
-                if ($gId) config(['services.google.client_id' => $gId]);
-                if ($gSecret) config(['services.google.client_secret' => $gSecret]);
-                if ($gRedirect) config(['services.google.redirect' => $gRedirect]);
+                if ($gId) {
+                    config(['services.google.client_id' => $gId]);
+                    \Log::debug('[AppServiceProvider] Set services.google.client_id');
+                }
+                if ($gSecret) {
+                    config(['services.google.client_secret' => $gSecret]);
+                    \Log::debug('[AppServiceProvider] Set services.google.client_secret');
+                }
+                if ($gRedirect) {
+                    config(['services.google.redirect' => $gRedirect]);
+                    \Log::debug('[AppServiceProvider] Set services.google.redirect: ' . $gRedirect);
+                }
 
                 // GitHub
                 $hId = $get('github_client_id');
                 $hSecret = $get('github_client_secret');
                 $hRedirect = $get('github_redirect') ?? ($get('frontend_url') ? rtrim($get('frontend_url'), '/') . '/api/auth/github/callback' : null);
-                if ($hId) config(['services.github.client_id' => $hId]);
-                if ($hSecret) config(['services.github.client_secret' => $hSecret]);
-                if ($hRedirect) config(['services.github.redirect' => $hRedirect]);
+                if ($hId) {
+                    config(['services.github.client_id' => $hId]);
+                    \Log::debug('[AppServiceProvider] Set services.github.client_id');
+                }
+                if ($hSecret) {
+                    config(['services.github.client_secret' => $hSecret]);
+                    \Log::debug('[AppServiceProvider] Set services.github.client_secret');
+                }
+                if ($hRedirect) {
+                    config(['services.github.redirect' => $hRedirect]);
+                    \Log::debug('[AppServiceProvider] Set services.github.redirect: ' . $hRedirect);
+                }
 
                 // Gorq
                 $gorqKey = $get('gorq_api_key');

@@ -34,6 +34,11 @@
                     <p class="text-gray-500 text-xs">Use this URL as the OAuth redirect URI in Google Console.</p>
                 </div>
             </div>
+            <div class="mt-4">
+                <label for="google_redirect" class="block text-sm font-medium text-gray-700 mb-2">Override Redirect URI (optional)</label>
+                <input type="url" id="google_redirect" name="google_redirect" value="{{ old('google_redirect', \App\Models\AppSettings::getSetting('google_redirect', env('GOOGLE_REDIRECT') ?? (\App\Models\AppSettings::getSetting('frontend_url') ? rtrim(\App\Models\AppSettings::getSetting('frontend_url'), '/') . '/api/auth/google/callback' : url('/api/auth/google/callback')))) }}" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500">
+                <p class="text-gray-500 text-xs mt-1">Optional: explicitly set the redirect URI used by the backend when exchanging tokens.</p>
+            </div>
         </div>
 
         <!-- GitHub OAuth -->
@@ -60,6 +65,11 @@
                     </div>
                     <p class="text-gray-500 text-xs">Use this URL as the OAuth redirect URI in GitHub App settings.</p>
                 </div>
+            </div>
+            <div class="mt-4">
+                <label for="github_redirect" class="block text-sm font-medium text-gray-700 mb-2">Override Redirect URI (optional)</label>
+                <input type="url" id="github_redirect" name="github_redirect" value="{{ old('github_redirect', \App\Models\AppSettings::getSetting('github_redirect', env('GITHUB_REDIRECT') ?? (\App\Models\AppSettings::getSetting('frontend_url') ? rtrim(\App\Models\AppSettings::getSetting('frontend_url'), '/') . '/api/auth/github/callback' : url('/api/auth/github/callback')))) }}" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500">
+                <p class="text-gray-500 text-xs mt-1">Optional: explicitly set the redirect URI used by the backend when exchanging tokens.</p>
             </div>
         </div>
 

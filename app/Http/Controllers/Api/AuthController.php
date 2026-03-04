@@ -623,7 +623,8 @@ class AuthController extends ApiController
             'code' => $code,
             'client_id' => config('services.google.client_id'),
             'client_secret' => config('services.google.client_secret'),
-            'redirect_uri' => $redirectUri ?? config('services.google.redirect'),
+            // Always use server-configured redirect URI to avoid redirect_uri_mismatch
+            'redirect_uri' => config('services.google.redirect'),
             'grant_type' => 'authorization_code',
         ]);
 
@@ -642,7 +643,8 @@ class AuthController extends ApiController
                 'code' => $code,
                 'client_id' => config('services.github.client_id'),
                 'client_secret' => config('services.github.client_secret'),
-                'redirect_uri' => $redirectUri ?? config('services.github.redirect'),
+                // Use server-configured redirect URI to prevent redirect_uri_mismatch
+                'redirect_uri' => config('services.github.redirect'),
             ]);
 
         if ($response->failed()) {

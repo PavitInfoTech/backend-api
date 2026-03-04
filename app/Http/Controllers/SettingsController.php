@@ -226,8 +226,11 @@ class SettingsController extends Controller
             // OAuth Settings
             $this->storeSetting('google_client_id', $request->input('google_client_id'), 'auth', 'Google Client ID');
             $this->storeSetting('google_client_secret', $request->input('google_client_secret'), 'auth', 'Google Client Secret', true);
+            // Optional explicit redirect URIs
+            $this->storeSetting('google_redirect', $request->input('google_redirect'), 'auth', 'Google Redirect URI');
             $this->storeSetting('github_client_id', $request->input('github_client_id'), 'auth', 'GitHub Client ID');
             $this->storeSetting('github_client_secret', $request->input('github_client_secret'), 'auth', 'GitHub Client Secret', true);
+            $this->storeSetting('github_redirect', $request->input('github_redirect'), 'auth', 'GitHub Redirect URI');
 
             // Turnstile Settings
             $this->storeSetting('turnstile_enabled', $request->has('turnstile_enabled'), 'auth', 'Turnstile Enabled');
