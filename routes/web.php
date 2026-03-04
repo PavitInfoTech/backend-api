@@ -37,6 +37,12 @@ Route::middleware('auth.admin')->prefix('settings')->name('settings.')->group(fu
     Route::post('/admin-credentials', [SettingsController::class, 'storeAdminCredential'])->name('store-admin-credential');
     Route::put('/admin-credentials/{credential}', [SettingsController::class, 'updateAdminCredential'])->name('update-admin-credential');
     Route::delete('/admin-credentials/{credential}', [SettingsController::class, 'deleteAdminCredential'])->name('delete-admin-credential');
+
+    // Cache management
+    Route::get('/cache', [SettingsController::class, 'cacheManagement'])->name('cache');
+    Route::post('/cache/clear', [SettingsController::class, 'clearCache'])->name('cache-clear');
+    Route::post('/cache/config-clear', [SettingsController::class, 'clearConfigCache'])->name('cache-config-clear');
+    Route::post('/cache/route-clear', [SettingsController::class, 'clearRouteCache'])->name('cache-route-clear');
 });
 
 // Admin dashboard redirect

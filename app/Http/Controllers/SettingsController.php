@@ -396,6 +396,60 @@ class SettingsController extends Controller
         return redirect()->route('settings.admin-credentials');
     }
 
+
+    /**
+     * Display cache management page
+     */
+    public function cacheManagement()
+    {
+        return view('settings.cache');
+    }
+
+    /**
+     * Clear application cache
+     */
+    public function clearCache()
+    {
+        try {
+            \Artisan::call('cache:clear');
+            session()->flash('success', 'Application cache cleared successfully!');
+        } catch (\Exception $e) {
+            session()->flash('error', 'Failed to clear cache: ' . $e->getMessage());
+        }
+
+        return redirect()->route('settings.cache');
+    }
+
+    /**
+     * Clear configuration cache
+     */
+    public function clearConfigCache()
+    {
+        try {
+            \Artisan::call('config:clear');
+            session()->flash('success', 'Configuration cache cleared successfully!');
+        } catch (\Exception $e) {
+            session()->flash('error', 'Failed to clear config cache: ' . $e->getMessage());
+        }
+
+        return redirect()->route('settings.cache');
+    }
+
+    /**
+     * Clear route cache
+     */
+    public function clearRouteCache()
+    {
+        try {
+            \Artisan::call('route:clear');
+            session()->flash('success', 'Route cache cleared successfully!');
+        } catch (\Exception $e) {
+            session()->flash('error', 'Failed to clear route cache: ' . $e->getMessage());
+        }
+
+        return redirect()->route('settings.cache');
+    }
+
     /**
      * Helper to store settings
      */
