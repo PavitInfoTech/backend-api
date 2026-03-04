@@ -188,22 +188,42 @@
 <script>
 document.addEventListener('DOMContentLoaded', function(){
     document.querySelectorAll('.copy-btn').forEach(function(btn){
-        btn.addEventListener('click', function(){
+        btn.addEventListener('click', async function(){
             var target = document.getElementById(btn.getAttribute('data-target'));
             if(!target) return;
-            // select and copy
-            target.focus();
-            target.select();
-            try{
-                document.execCommand('copy');
-            }catch(e){
-                if(navigator.clipboard && navigator.clipboard.writeText){
-                    navigator.clipboard.writeText(target.value).catch(()=>{});
+            var text = target.value || target.innerText || '';
+
+            // Prefer modern clipboard API with permission request
+            try {
+                if (navigator.permissions) {
+                    try {
+                        var res = await navigator.permissions.query({ name: 'clipboard-write' });
+                        // if state is 'denied' will throw below
+                    } catch (permErr) {
+                        // ignore permission query failures
+                    }
+                }
+
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(text);
+                } else {
+                    // Fallback to execCommand
+                    target.focus();
+                    target.select();
+                    document.execCommand('copy');
+                }
+
+                var old = btn.textContent;
+                btn.textContent = 'Copied';
+                setTimeout(function(){ btn.textContent = old; }, 1500);
+            } catch (err) {
+                // Show a fallback prompt so user can manually copy
+                try {
+                    prompt('Copy the callback URL', text);
+                } catch (e) {
+                    // last resort: no-op
                 }
             }
-            var old = btn.textContent;
-            btn.textContent = 'Copied';
-            setTimeout(function(){ btn.textContent = old; }, 1500);
         });
     });
 });

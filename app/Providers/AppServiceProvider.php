@@ -56,7 +56,8 @@ class AppServiceProvider extends ServiceProvider
                 // Google
                 $gId = $get('google_client_id');
                 $gSecret = $get('google_client_secret');
-                $gRedirect = $get('google_redirect') ?? ($get('frontend_url') ? rtrim($get('frontend_url'), '/') . '/api/auth/google/callback' : null);
+                // Prefer explicit setting; otherwise default to this app's URL + callback
+                $gRedirect = $get('google_redirect') ?? (config('app.url') ? rtrim(config('app.url'), '/') . '/api/auth/google/callback' : url('/api/auth/google/callback'));
                 if ($gId) {
                     config(['services.google.client_id' => $gId]);
                     \Log::debug('[AppServiceProvider] Set services.google.client_id');
@@ -73,7 +74,7 @@ class AppServiceProvider extends ServiceProvider
                 // GitHub
                 $hId = $get('github_client_id');
                 $hSecret = $get('github_client_secret');
-                $hRedirect = $get('github_redirect') ?? ($get('frontend_url') ? rtrim($get('frontend_url'), '/') . '/api/auth/github/callback' : null);
+                $hRedirect = $get('github_redirect') ?? (config('app.url') ? rtrim(config('app.url'), '/') . '/api/auth/github/callback' : url('/api/auth/github/callback'));
                 if ($hId) {
                     config(['services.github.client_id' => $hId]);
                     \Log::debug('[AppServiceProvider] Set services.github.client_id');
