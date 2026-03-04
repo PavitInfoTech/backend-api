@@ -29,8 +29,15 @@ class SetupController extends Controller
         }
 
         // At this point the environment reports installed; safe to check DB.
-        if (AdminCredential::active()->exists()) {
-            return redirect()->route('login');
+        try {
+            if (AdminCredential::active()->exists()) {
+                return redirect()->route('admin.login');
+            }
+        } catch (\Throwable $e) {
+            // if something goes wrong querying the database, just send user to
+            // the login page instead of blowing up with a 500. This prevents
+            // rare race conditions during early deployment.
+            return redirect()->route('admin.login');
         }
 
         return view('setup.admin-setup');
