@@ -151,7 +151,7 @@
             <div>
                 <label for="frontend_url" class="block text-sm font-medium text-gray-700 mb-2">Frontend URL</label>
                 <input type="url" id="frontend_url" name="frontend_url" value="{{ old('frontend_url', \App\Models\AppSettings::getSetting('frontend_url') ?? 'http://localhost:3000') }}" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500">
-                <p class="text-gray-500 text-xs mt-1">URL of your frontend application (used for OAuth redirects)</p>
+                <p class="text-gray-500 text-xs mt-1">URL of your frontend application (used for OAuth redirects and CORS). This is automatically saved to <span class="font-mono">.env</span>.</p>
             </div>
         </div>
 
@@ -173,7 +173,7 @@
                 </div>
                 <div class="ml-3 text-sm">
                     <label for="write_env" class="font-medium text-gray-700">Also write selected keys to .env</label>
-                    <p class="text-gray-500">When checked, selected OAuth/API keys will be persisted to the <span class="font-mono">.env</span> file. Note: some services require restarting the app or clearing config cache for changes to take effect.</p>
+                    <p class="text-gray-500"><strong>Frontend URL is always saved.</strong> When checked, selected OAuth/API keys will also be persisted to the <span class="font-mono">.env</span> file. Note: some services require restarting the app or clearing config cache for changes to take effect.</p>
                 </div>
             </div>
             <div class="flex justify-end mt-4">

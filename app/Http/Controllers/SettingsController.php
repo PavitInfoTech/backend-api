@@ -268,7 +268,16 @@ class SettingsController extends Controller
                 'description' => 'CORS allowed origins',
             ]);
 
-            // Optionally persist selected values into the .env file so
+            // Always persist FRONTEND_URL to .env so CORS config can read it
+            try {
+                if ($request->filled('frontend_url')) {
+                    $this->setEnvValue('FRONTEND_URL', $request->input('frontend_url'));
+                }
+            } catch (\Throwable $e) {
+                // Non-fatal: ignore env write errors
+            }
+
+            // Optionally persist other selected values into the .env file so
             // external packages that read env() (e.g. Socialite) can pick them up.
             if ($request->has('write_env')) {
                 try {
@@ -278,13 +287,8 @@ class SettingsController extends Controller
                     if ($request->filled('github_client_id')) $this->setEnvValue('GITHUB_CLIENT_ID', $request->input('github_client_id'));
                     if ($request->filled('github_client_secret')) $this->setEnvValue('GITHUB_CLIENT_SECRET', $request->input('github_client_secret'));
 
-                    if ($request->filled('frontend_url')) {
-                        $this->setEnvValue('FRONTEND_URL', $request->input('frontend_url'));
-                        $gRedirect = rtrim($request->input('frontend_url'), '/') . '/api/auth/google/callback';
-                        $hRedirect = rtrim($request->input('frontend_url'), '/') . '/api/auth/github/callback';
-                        $this->setEnvValue('GOOGLE_REDIRECT', $gRedirect);
-                        $this->setEnvValue('GITHUB_REDIRECT', $hRedirect);
-                    }
+                    if ($request->filled('google_redirect')) $this->setEnvValue('GOOGLE_REDIRECT', $request->input('google_redirect'));
+                    if ($request->filled('github_redirect')) $this->setEnvValue('GITHUB_REDIRECT', $request->input('github_redirect'));
 
                     if ($request->filled('gorq_api_key')) $this->setEnvValue('GORQ_API_KEY', $request->input('gorq_api_key'));
                     if ($request->filled('gorq_base_url')) $this->setEnvValue('GORQ_BASE_URL', $request->input('gorq_base_url'));

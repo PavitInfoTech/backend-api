@@ -109,25 +109,36 @@ class AppServiceProvider extends ServiceProvider
                 if ($recSite) config(['services.recaptcha.site_key' => $recSite]);
                 if ($recSecret) config(['services.recaptcha.secret' => $recSecret]);
 
-                // CORS allowed origins (stored as JSON array in settings)
+                // CORS allowed origins (stored as JSON array in settings).
+                // Merge saved origins with fallback to FRONTEND_URL and API_DOMAIN from env.
                 $allowed = $get('allowed_origins');
+                $allowedArr = [];
+                
+                // Start with DB-saved origins if they exist
                 if ($allowed) {
                     if (is_string($allowed)) {
                         $decoded = json_decode($allowed, true);
                         $allowedArr = is_array($decoded) ? $decoded : [$allowed];
                     } elseif (is_array($allowed)) {
                         $allowedArr = $allowed;
-                    } else {
-                        $allowedArr = [];
-                    }
-
-                    if (!empty($allowedArr)) {
-                        config(['cors.allowed_origins' => $allowedArr]);
                     }
                 }
+                
+                // Always include FRONTEND_URL and API_DOMAIN as fallbacks
+                $fallbacks = array_filter([
+                    env('FRONTEND_URL'),
+                    env('API_DOMAIN'),
+                    'http://localhost:3000', // dev default
+                ]);
+                $allowedArr = array_unique(array_merge($allowedArr, $fallbacks));
+                
+                if (!empty($allowedArr)) {
+                    config(['cors.allowed_origins' => array_values($allowedArr)]);
+                    \Log::debug('[AppServiceProvider] CORS allowed_origins set to: ' . json_encode(array_values($allowedArr)));}
             }
         } catch (\Throwable $e) {
             // keep boot resilient during first-run when DB isn't ready
+            \Log::debug('[AppServiceProvider] CORS config failed: ' . $e->getMessage());
         }
     }
 }

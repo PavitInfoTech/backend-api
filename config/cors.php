@@ -19,7 +19,8 @@ return [
     'allowed_methods' => ['*'],
 
     // Use your frontend URL here (e.g. https://charadesai.com) or set FRONTEND_URL in .env
-    'allowed_origins' => [env('FRONTEND_URL', 'http://localhost:3000')],
+    // Defaults to localhost:3000 for development. In production, ensure FRONTEND_URL is set.
+    'allowed_origins' => array_filter([env('FRONTEND_URL'), env('API_DOMAIN')]),
 
     'allowed_origins_patterns' => [],
 
