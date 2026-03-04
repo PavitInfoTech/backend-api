@@ -78,7 +78,7 @@
             <h2 class="text-lg font-semibold text-gray-900 mb-2">Cloudflare Turnstile</h2>
             <p class="text-gray-600 text-sm mb-4">CAPTCHA solution for forms (alternative to reCAPTCHA)</p>
             <div class="mb-4 flex items-center">
-                <input type="checkbox" id="turnstile_enabled" name="turnstile_enabled" {{ \App\Models\AppSettings::getSetting('turnstile_enabled') ? 'checked' : '' }} class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
+                <input type="checkbox" id="turnstile_enabled" name="turnstile_enabled" value="1" {{ \App\Models\AppSettings::getSetting('turnstile_enabled') ? 'checked' : '' }} class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
                 <label for="turnstile_enabled" class="ml-2 block text-sm text-gray-900">Enable Turnstile</label>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -98,7 +98,7 @@
             <h2 class="text-lg font-semibold text-gray-900 mb-2">Google reCAPTCHA v2/v3</h2>
             <p class="text-gray-600 text-sm mb-4">CAPTCHA solution for forms (alternative to Turnstile)</p>
             <div class="mb-4 flex items-center">
-                <input type="checkbox" id="recaptcha_enabled" name="recaptcha_enabled" {{ \App\Models\AppSettings::getSetting('recaptcha_enabled') ? 'checked' : '' }} class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
+                <input type="checkbox" id="recaptcha_enabled" name="recaptcha_enabled" value="1" {{ \App\Models\AppSettings::getSetting('recaptcha_enabled') ? 'checked' : '' }} class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
                 <label for="recaptcha_enabled" class="ml-2 block text-sm text-gray-900">Enable reCAPTCHA</label>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
