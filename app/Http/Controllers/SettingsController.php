@@ -156,6 +156,14 @@ class SettingsController extends Controller
             $fromName = AppSettings::getSetting('mail_from_name')
                 ?: config('mail.from.name', env('MAIL_FROM_NAME', 'Backend API'));
 
+            $mailDriver = config('mail.default');
+
+            \Log::info('[TestMail] Attempting to send test email', [
+                'driver' => $mailDriver,
+                'to' => $toAddress,
+                'from' => $fromAddress,
+            ]);
+
             // Send a simple test email
             Mail::raw(
                 'This is a test email from your Backend API to verify SMTP configuration is working correctly.',
@@ -166,9 +174,10 @@ class SettingsController extends Controller
                 }
             );
 
+            \Log::info('[TestMail] Test email sent successfully');
             return back()->with('success', 'Test email sent successfully to ' . $toAddress . '! Check your mailbox (including spam folder).');
         } catch (\Exception $e) {
-            \Log::error('Test email failed', ['error' => $e->getMessage()]);
+            \Log::error('[TestMail] Failed to send test email', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return back()->with('error', 'Failed to send test email: ' . $e->getMessage());
         }
     }

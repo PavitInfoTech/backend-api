@@ -6,6 +6,25 @@
 <div class="p-6">
     <h1 class="text-2xl font-bold text-gray-900 mb-6">Mail Settings</h1>
 
+    <!-- Info Box -->
+    <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+        <p class="text-blue-900 text-sm">
+            <strong>Current Driver:</strong> 
+            <span class="font-mono font-bold">{{ config('mail.default') }}</span>
+            <br>
+            <small class="text-blue-800">The application is currently using the <strong>{{ config('mail.default') }}</strong> mail driver. After changing settings below, they will take effect immediately.</small>
+        </p>
+    </div>
+
+    <!-- Warning if using log driver -->
+    @if(config('mail.default') === 'log')
+    <div class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+        <p class="text-yellow-900 text-sm">
+            <strong>⚠️ Log Driver Active:</strong> Emails are being logged instead of sent. To send real emails, please select <strong>SMTP</strong> below and configure your SMTP credentials.
+        </p>
+    </div>
+    @endif
+
     <form action="{{ route('settings.update-mail') }}" method="POST" class="space-y-6">
         @csrf
 
@@ -13,14 +32,15 @@
             <div>
                 <label for="mail_mailer" class="block text-sm font-medium text-gray-700 mb-2">Mail Driver</label>
                 <select id="mail_mailer" name="mail_mailer" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500">
-                    <option value="log" {{ $mailSettings->where('key', 'mail_mailer')->first()?->getValue() == 'log' ? 'selected' : '' }}>Log</option>
-                    <option value="smtp" {{ $mailSettings->where('key', 'mail_mailer')->first()?->getValue() == 'smtp' ? 'selected' : '' }}>SMTP</option>
+                    <option value="log" {{ $mailSettings->where('key', 'mail_mailer')->first()?->getValue() == 'log' ? 'selected' : '' }}>Log (Development Only)</option>
+                    <option value="smtp" {{ $mailSettings->where('key', 'mail_mailer')->first()?->getValue() == 'smtp' ? 'selected' : '' }}>SMTP (Production)</option>
                     <option value="sendmail" {{ $mailSettings->where('key', 'mail_mailer')->first()?->getValue() == 'sendmail' ? 'selected' : '' }}>Sendmail</option>
                     <option value="mailgun" {{ $mailSettings->where('key', 'mail_mailer')->first()?->getValue() == 'mailgun' ? 'selected' : '' }}>Mailgun</option>
                     <option value="postmark" {{ $mailSettings->where('key', 'mail_mailer')->first()?->getValue() == 'postmark' ? 'selected' : '' }}>Postmark</option>
                     <option value="ses" {{ $mailSettings->where('key', 'mail_mailer')->first()?->getValue() == 'ses' ? 'selected' : '' }}>SES</option>
                     <option value="resend" {{ $mailSettings->where('key', 'mail_mailer')->first()?->getValue() == 'resend' ? 'selected' : '' }}>Resend</option>
                 </select>
+                <p class="text-gray-500 text-xs mt-1">Choose SMTP for sending real emails. Log is only for development/testing.</p>
             </div>
 
             <div>
@@ -72,6 +92,15 @@
                     <option value="tls" {{ $mailSettings->where('key', 'mail_encryption')->first()?->getValue() == 'tls' ? 'selected' : '' }}>TLS</option>
                     <option value="ssl" {{ $mailSettings->where('key', 'mail_encryption')->first()?->getValue() == 'ssl' ? 'selected' : '' }}>SSL</option>
                 </select>
+            </div>
+        </div>
+
+        <div class="border-t pt-6 mt-6">
+            <div class="bg-gray-50 p-4 rounded-md">
+                <p class="text-gray-700 text-sm">
+                    <strong>ℹ️ How Configuration Works:</strong><br>
+                    The settings you configure below are automatically applied to the application. There is no need to edit the <span class="font-mono">.env</span> file—changes here take effect immediately after you click "Save Changes".
+                </p>
             </div>
         </div>
 

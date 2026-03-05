@@ -39,10 +39,18 @@ class MailController extends ApiController
 
         // Send immediately without queue to ensure delivery
         try {
+            \Log::info('[Contact] Sending contact form email', [
+                'from' => $data['email'],
+                'to' => $to,
+                'driver' => config('mail.default'),
+            ]);
+
             Mail::to($to)->sendNow(new \App\Mail\ContactMail($data['name'], $data['email'], $data['message']));
+            
+            \Log::info('[Contact] Contact form email sent successfully');
             return $this->success(null, 'Contact message sent successfully');
         } catch (\Exception $e) {
-            \Log::error('Contact form email failed', ['error' => $e->getMessage(), 'to' => $to]);
+            \Log::error('[Contact] Contact form email failed', ['error' => $e->getMessage(), 'to' => $to, 'trace' => $e->getTraceAsString()]);
             return $this->success(null, 'Contact message received (delivery pending)');
         }
     }

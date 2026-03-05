@@ -134,11 +134,43 @@ class AppServiceProvider extends ServiceProvider
                 
                 if (!empty($allowedArr)) {
                     config(['cors.allowed_origins' => array_values($allowedArr)]);
-                    \Log::debug('[AppServiceProvider] CORS allowed_origins set to: ' . json_encode(array_values($allowedArr)));}
-            }
-        } catch (\Throwable $e) {
-            // keep boot resilient during first-run when DB isn't ready
-            \Log::debug('[AppServiceProvider] CORS config failed: ' . $e->getMessage());
-        }
+                    \Log::debug('[AppServiceProvider] CORS allowed_origins set to: ' . json_encode(array_values($allowedArr)));
+                }
+
+                // Mail configuration from AppSettings
+                $mailMailer = $get('mail_mailer');
+                if ($mailMailer) {
+                    config(['mail.default' => $mailMailer]);
+                    \Log::debug('[AppServiceProvider] Set mail.default to: ' . $mailMailer);
+                }
+
+                $mailFromAddr = $get('mail_from_address');
+                $mailFromName = $get('mail_from_name');
+                if ($mailFromAddr || $mailFromName) {
+                    config(['mail.from' => array_filter([
+                        'address' => $mailFromAddr ?: config('mail.from.address'),
+                        'name' => $mailFromName ?: config('mail.from.name'),
+                    ])]);
+                    \Log::debug('[AppServiceProvider] Updated mail.from config');
+                }
+
+                // SMTP configuration
+                if ($mailMailer === 'smtp') {
+                    $smtpHost = $get('mail_host');
+                    $smtpPort = $get('mail_port');
+                    $smtpUsername = $get('mail_username');
+                    $smtpPassword = $get('mail_password');
+                    $smtpEncryption = $get('mail_encryption');
+
+                    $smtpConfig = config('mail.mailers.smtp', []);
+                    if ($smtpHost) $smtpConfig['host'] = $smtpHost;
+                    if ($smtpPort) $smtpConfig['port'] = (int)$smtpPort;
+                    if ($smtpUsername) $smtpConfig['username'] = $smtpUsername;
+                    if ($smtpPassword) $smtpConfig['password'] = $smtpPassword;
+                    if (!is_null($smtpEncryption)) $smtpConfig['encryption'] = $smtpEncryption ?: null;
+
+                    config(['mail.mailers.smtp' => $smtpConfig]);
+                    \Log::debug('[AppServiceProvider] Updated SMTP configuration from AppSettings');
+                }
     }
 }
