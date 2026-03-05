@@ -68,6 +68,7 @@ class SettingsController extends Controller
             'mail_encryption' => 'nullable|in:tls,ssl,null',
             'mail_from_address' => 'required|email',
             'mail_from_name' => 'required|string',
+            'mail_to_address' => 'nullable|email',
         ]);
 
         if ($validator->fails()) {
@@ -121,6 +122,12 @@ class SettingsController extends Controller
                 'category' => 'mail',
                 'is_encrypted' => false,
                 'description' => 'Mail from name',
+            ]);
+
+            AppSettings::setSetting('mail_to_address', $request->input('mail_to_address'), [
+                'category' => 'mail',
+                'is_encrypted' => false,
+                'description' => 'Recipient email for contact forms',
             ]);
 
             session()->flash('success', 'Mail settings updated successfully!');

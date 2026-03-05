@@ -33,7 +33,9 @@ class MailController extends ApiController
 
         $data = $request->validate($rules);
 
-        $to = config('mail.to_address', env('MAIL_TO_ADDRESS')) ?: config('mail.from.address', env('MAIL_FROM_ADDRESS'));
+        // Get recipient email from AppSettings (admin configured), then fallback to config/env
+        $to = \App\Models\AppSettings::getSetting('mail_to_address')
+            ?: (config('mail.to_address', env('MAIL_TO_ADDRESS')) ?: config('mail.from.address', env('MAIL_FROM_ADDRESS')));
 
         // Use a Mailable so it can be asserted in tests
         Mail::to($to)->send(new \App\Mail\ContactMail($data['name'], $data['email'], $data['message']));
