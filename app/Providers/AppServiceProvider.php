@@ -177,5 +177,10 @@ class AppServiceProvider extends ServiceProvider
                     config(['mail.mailers.smtp' => $smtpConfig]);
                     \Log::debug('[AppServiceProvider] Updated SMTP configuration from AppSettings');
                 }
+            }
+        } catch (\Throwable $e) {
+            // keep boot resilient during first-run when DB isn't ready or other errors
+            \Log::debug('[AppServiceProvider] runtime configuration load failed: ' . $e->getMessage());
+        }
     }
 }
