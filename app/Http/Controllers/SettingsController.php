@@ -100,11 +100,14 @@ class SettingsController extends Controller
                 'description' => 'Mail username',
             ]);
 
-            AppSettings::setSetting('mail_password', $request->input('mail_password'), [
-                'category' => 'mail',
-                'is_encrypted' => true,
-                'description' => 'Mail password',
-            ]);
+            // only update password if a new one was provided, otherwise keep existing
+            if ($request->filled('mail_password')) {
+                AppSettings::setSetting('mail_password', $request->input('mail_password'), [
+                    'category' => 'mail',
+                    'is_encrypted' => true,
+                    'description' => 'Mail password',
+                ]);
+            }
 
             AppSettings::setSetting('mail_encryption', $request->input('mail_encryption'), [
                 'category' => 'mail',

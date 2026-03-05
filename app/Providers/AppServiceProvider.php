@@ -175,7 +175,12 @@ class AppServiceProvider extends ServiceProvider
                     if (!is_null($smtpEncryption)) $smtpConfig['encryption'] = $smtpEncryption ?: null;
 
                     config(['mail.mailers.smtp' => $smtpConfig]);
-                    \Log::debug('[AppServiceProvider] Updated SMTP configuration from AppSettings');
+                    \Log::debug('[AppServiceProvider] Updated SMTP configuration from AppSettings: ' . json_encode([
+                        'host' => $smtpConfig['host'] ?? null,
+                        'port' => $smtpConfig['port'] ?? null,
+                        'username' => $smtpConfig['username'] ?? null,
+                        'encryption' => $smtpConfig['encryption'] ?? null,
+                    ]));
                 }
             }
         } catch (\Throwable $e) {

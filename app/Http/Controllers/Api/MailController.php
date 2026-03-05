@@ -51,7 +51,8 @@ class MailController extends ApiController
             return $this->success(null, 'Contact message sent successfully');
         } catch (\Exception $e) {
             \Log::error('[Contact] Contact form email failed', ['error' => $e->getMessage(), 'to' => $to, 'trace' => $e->getTraceAsString()]);
-            return $this->success(null, 'Contact message received (delivery pending)');
+            // propagate error message back to client
+            return $this->error('Failed to send contact email: ' . $e->getMessage(), 500);
         }
     }
 

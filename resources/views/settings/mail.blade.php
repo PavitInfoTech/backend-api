@@ -16,6 +16,19 @@
         </p>
     </div>
 
+    <!-- Display current SMTP configuration for troubleshooting -->
+    @if(config('mail.default') === 'smtp')
+    <div class="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-md">
+        <p class="text-gray-700 text-sm">
+            <strong>SMTP configuration in use:</strong><br>
+            Host: <span class="font-mono">{{ config('mail.mailers.smtp.host') }}</span><br>
+            Port: <span class="font-mono">{{ config('mail.mailers.smtp.port') }}</span><br>
+            Username: <span class="font-mono">{{ config('mail.mailers.smtp.username') }}</span><br>
+            Encryption: <span class="font-mono">{{ config('mail.mailers.smtp.encryption') ?: 'none' }}</span>
+        </p>
+    </div>
+    @endif
+
     <!-- Warning if using log driver -->
     @if(config('mail.default') === 'log')
     <div class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
