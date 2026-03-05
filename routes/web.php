@@ -22,6 +22,7 @@ Route::middleware('auth.admin')->prefix('settings')->name('settings.')->group(fu
     // Mail settings
     Route::get('/mail', [SettingsController::class, 'mailSettings'])->name('mail');
     Route::post('/mail', [SettingsController::class, 'updateMailSettings'])->name('update-mail');
+    Route::post('/mail/test', [SettingsController::class, 'testMailSettings'])->name('test-mail');
     
     // Auth settings
     Route::get('/auth', [SettingsController::class, 'authSettings'])->name('auth');

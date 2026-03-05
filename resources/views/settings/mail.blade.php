@@ -75,7 +75,11 @@
             </div>
         </div>
 
-        <div class="flex justify-end mt-8">
+        <div class="flex justify-between items-center mt-8">
+            <form action="{{ route('settings.test-mail') }}" method="POST" class="inline">
+                @csrf
+                <button type="submit" class="bg-blue-600 text-white py-2 px-6 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Send Test Email</button>
+            </form>
             <button type="submit" class="bg-purple-600 text-white py-2 px-6 rounded-md hover:bg-purple-700 transition duration-200 font-medium">Save Changes</button>
         </div>
     </form>

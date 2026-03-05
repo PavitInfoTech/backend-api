@@ -138,6 +138,42 @@ class SettingsController extends Controller
     }
 
     /**
+     * Send a test email to verify SMTP configuration
+     */
+    public function testMailSettings(Request $request)
+    {
+        try {
+            $toAddress = AppSettings::getSetting('mail_to_address')
+                ?: config('mail.from.address', env('MAIL_FROM_ADDRESS'));
+            
+            if (!$toAddress) {
+                return back()->with('error', 'Please configure a "From Address" or "To Address (Contact Form)" before testing.');
+            }
+
+            $fromAddress = AppSettings::getSetting('mail_from_address')
+                ?: config('mail.from.address', env('MAIL_FROM_ADDRESS'));
+            
+            $fromName = AppSettings::getSetting('mail_from_name')
+                ?: config('mail.from.name', env('MAIL_FROM_NAME', 'Backend API'));
+
+            // Send a simple test email
+            Mail::raw(
+                'This is a test email from your Backend API to verify SMTP configuration is working correctly.',
+                function ($msg) use ($toAddress, $fromAddress, $fromName) {
+                    $msg->to($toAddress)
+                        ->from($fromAddress, $fromName)
+                        ->subject('[Test] Backend API - SMTP Configuration Test');
+                }
+            );
+
+            return back()->with('success', 'Test email sent successfully to ' . $toAddress . '! Check your mailbox (including spam folder).');
+        } catch (\Exception $e) {
+            \Log::error('Test email failed', ['error' => $e->getMessage()]);
+            return back()->with('error', 'Failed to send test email: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Display API keys settings page
      */
     public function apiSettings()
