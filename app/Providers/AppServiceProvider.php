@@ -44,11 +44,22 @@ class AppServiceProvider extends ServiceProvider
         // packages (Socialite, Gorq, etc.) configured via `config('services')`.
         try {
             if (Schema::hasTable('app_settings')) {
-                $get = function ($k, $d = null) {
+                // Keys that should never be logged (security-sensitive)
+                $sensitiveKeys = [
+                    'google_client_secret',
+                    'github_client_secret',
+                    'mail_password',
+                    'mail_username',
+                    'turnstile_secret',
+                    'recaptcha_secret',
+                    'gorq_api_key',
+                    'google_maps_api_key',
+                ];
+
+                $get = function ($k, $d = null) use ($sensitiveKeys) {
                     $val = AppSettings::getSetting($k, $d);
-                    // Log to help debug, but avoid converting arrays directly to string which triggers
-                    // "Array to string conversion" warnings while booting (and can lead to 500s).
-                    if (!empty($val)) {
+                    // Skip logging for sensitive keys to avoid leaking credentials to logs
+                    if (!empty($val) && !in_array($k, $sensitiveKeys)) {
                         $display = is_array($val) ? json_encode($val) : (string) $val;
                         if (strlen($display) > 50) {
                             $display = substr($display, 0, 50) . '...';
@@ -65,15 +76,13 @@ class AppServiceProvider extends ServiceProvider
                 $gRedirect = $get('google_redirect') ?? (config('app.url') ? rtrim(config('app.url'), '/') . '/api/auth/google/callback' : url('/api/auth/google/callback'));
                 if ($gId) {
                     config(['services.google.client_id' => $gId]);
-                    \Log::debug('[AppServiceProvider] Set services.google.client_id');
+                    \Log::debug('[AppServiceProvider] Configured: services.google');
                 }
                 if ($gSecret) {
                     config(['services.google.client_secret' => $gSecret]);
-                    \Log::debug('[AppServiceProvider] Set services.google.client_secret');
                 }
                 if ($gRedirect) {
                     config(['services.google.redirect' => $gRedirect]);
-                    \Log::debug('[AppServiceProvider] Set services.google.redirect: ' . $gRedirect);
                 }
 
                 // GitHub
@@ -82,15 +91,13 @@ class AppServiceProvider extends ServiceProvider
                 $hRedirect = $get('github_redirect') ?? (config('app.url') ? rtrim(config('app.url'), '/') . '/api/auth/github/callback' : url('/api/auth/github/callback'));
                 if ($hId) {
                     config(['services.github.client_id' => $hId]);
-                    \Log::debug('[AppServiceProvider] Set services.github.client_id');
+                    \Log::debug('[AppServiceProvider] Configured: services.github');
                 }
                 if ($hSecret) {
                     config(['services.github.client_secret' => $hSecret]);
-                    \Log::debug('[AppServiceProvider] Set services.github.client_secret');
                 }
                 if ($hRedirect) {
                     config(['services.github.redirect' => $hRedirect]);
-                    \Log::debug('[AppServiceProvider] Set services.github.redirect: ' . $hRedirect);
                 }
 
                 // Gorq
@@ -98,6 +105,7 @@ class AppServiceProvider extends ServiceProvider
                 $gorqBase = $get('gorq_base_url');
                 if ($gorqKey) config(['services.gorq.key' => $gorqKey]);
                 if ($gorqBase) config(['services.gorq.base_url' => $gorqBase]);
+                if ($gorqKey || $gorqBase) \Log::debug('[AppServiceProvider] Configured: services.gorq');
 
                 // Turnstile / reCAPTCHA
                 $turnEnabled = $get('turnstile_enabled');
@@ -106,6 +114,7 @@ class AppServiceProvider extends ServiceProvider
                 $turnSecret = $get('turnstile_secret');
                 if ($turnSite) config(['services.turnstile.site_key' => $turnSite]);
                 if ($turnSecret) config(['services.turnstile.secret' => $turnSecret]);
+                if ($turnSite || $turnSecret) \Log::debug('[AppServiceProvider] Configured: services.turnstile');
 
                 $recEnabled = $get('recaptcha_enabled');
                 if (!is_null($recEnabled)) config(['services.recaptcha.enabled' => boolval($recEnabled)]);
@@ -113,6 +122,7 @@ class AppServiceProvider extends ServiceProvider
                 $recSecret = $get('recaptcha_secret');
                 if ($recSite) config(['services.recaptcha.site_key' => $recSite]);
                 if ($recSecret) config(['services.recaptcha.secret' => $recSecret]);
+                if ($recSite || $recSecret) \Log::debug('[AppServiceProvider] Configured: services.recaptcha');
 
                 // CORS allowed origins (stored as JSON array in settings).
                 // Merge saved origins with fallback to FRONTEND_URL and API_DOMAIN from env.
@@ -146,7 +156,7 @@ class AppServiceProvider extends ServiceProvider
                 $mailMailer = $get('mail_mailer');
                 if ($mailMailer) {
                     config(['mail.default' => $mailMailer]);
-                    \Log::debug('[AppServiceProvider] Set mail.default to: ' . $mailMailer);
+                    \Log::debug('[AppServiceProvider] Configured: mail driver = ' . $mailMailer);
                 }
 
                 $mailFromAddr = $get('mail_from_address');
@@ -156,7 +166,7 @@ class AppServiceProvider extends ServiceProvider
                         'address' => $mailFromAddr ?: config('mail.from.address'),
                         'name' => $mailFromName ?: config('mail.from.name'),
                     ])]);
-                    \Log::debug('[AppServiceProvider] Updated mail.from config');
+                    \Log::debug('[AppServiceProvider] Configured: mail.from');
                 }
 
                 // SMTP configuration
@@ -175,12 +185,7 @@ class AppServiceProvider extends ServiceProvider
                     if (!is_null($smtpEncryption)) $smtpConfig['encryption'] = $smtpEncryption ?: null;
 
                     config(['mail.mailers.smtp' => $smtpConfig]);
-                    \Log::debug('[AppServiceProvider] Updated SMTP configuration from AppSettings: ' . json_encode([
-                        'host' => $smtpConfig['host'] ?? null,
-                        'port' => $smtpConfig['port'] ?? null,
-                        'username' => $smtpConfig['username'] ?? null,
-                        'encryption' => $smtpConfig['encryption'] ?? null,
-                    ]));
+                    \Log::debug('[AppServiceProvider] Configured: SMTP (host=' . ($smtpHost ?: 'default') . ', port=' . ($smtpPort ?: 587) . ', encryption=' . ($smtpEncryption ?: 'none') . ')');
                 }
             }
         } catch (\Throwable $e) {
