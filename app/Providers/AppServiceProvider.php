@@ -46,9 +46,14 @@ class AppServiceProvider extends ServiceProvider
             if (Schema::hasTable('app_settings')) {
                 $get = function ($k, $d = null) {
                     $val = AppSettings::getSetting($k, $d);
-                    // Log to help debug
+                    // Log to help debug, but avoid converting arrays directly to string which triggers
+                    // "Array to string conversion" warnings while booting (and can lead to 500s).
                     if (!empty($val)) {
-                        \Log::debug('[AppServiceProvider] Loaded setting: ' . $k . ' = ' . (strlen((string)$val) > 50 ? substr((string)$val, 0, 50) . '...' : $val));
+                        $display = is_array($val) ? json_encode($val) : (string) $val;
+                        if (strlen($display) > 50) {
+                            $display = substr($display, 0, 50) . '...';
+                        }
+                        \Log::debug('[AppServiceProvider] Loaded setting: ' . $k . ' = ' . $display);
                     }
                     return $val;
                 };
