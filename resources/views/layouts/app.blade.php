@@ -34,6 +34,7 @@
                     <a href="{{ route('settings.mail') }}" class="block px-3 py-2 rounded-md {{ request()->routeIs('settings.mail') ? 'bg-purple-100 text-purple-900' : 'text-gray-600 hover:bg-gray-100' }}">Mail Settings</a>
                     <a href="{{ route('settings.auth') }}" class="block px-3 py-2 rounded-md {{ request()->routeIs('settings.auth') ? 'bg-purple-100 text-purple-900' : 'text-gray-600 hover:bg-gray-100' }}">Auth & API</a>
                     <a href="{{ route('settings.api') }}" class="block px-3 py-2 rounded-md {{ request()->routeIs('settings.api') ? 'bg-purple-100 text-purple-900' : 'text-gray-600 hover:bg-gray-100' }}">API Keys</a>
+                    <a href="{{ route('subscription-plans') }}" class="block px-3 py-2 rounded-md {{ request()->routeIs('subscription-plans') ? 'bg-purple-100 text-purple-900' : 'text-gray-600 hover:bg-gray-100' }}">Subscription Plans</a>
                     <a href="{{ route('settings.admin-credentials') }}" class="block px-3 py-2 rounded-md {{ request()->routeIs('settings.admin-credentials') ? 'bg-purple-100 text-purple-900' : 'text-gray-600 hover:bg-gray-100' }}">Admin Credentials</a>
                     <a href="{{ route('settings.cache') }}" class="block px-3 py-2 rounded-md {{ request()->routeIs('settings.cache') ? 'bg-purple-100 text-purple-900' : 'text-gray-600 hover:bg-gray-100' }}">Cache Management</a>
                 </nav>

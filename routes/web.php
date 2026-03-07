@@ -44,6 +44,12 @@ Route::middleware('auth.admin')->prefix('settings')->name('settings.')->group(fu
     Route::post('/cache/clear', [SettingsController::class, 'clearCache'])->name('cache-clear');
     Route::post('/cache/config-clear', [SettingsController::class, 'clearConfigCache'])->name('cache-config-clear');
     Route::post('/cache/route-clear', [SettingsController::class, 'clearRouteCache'])->name('cache-route-clear');
+
+    // Subscription plans management
+    Route::get('/subscription-plans', [SettingsController::class, 'subscriptionPlans'])->name('subscription-plans');
+    Route::post('/subscription-plans', [SettingsController::class, 'storeSubscriptionPlan'])->name('store-subscription-plan');
+    Route::put('/subscription-plans/{plan}', [SettingsController::class, 'updateSubscriptionPlan'])->name('update-subscription-plan');
+    Route::delete('/subscription-plans/{plan}', [SettingsController::class, 'deleteSubscriptionPlan'])->name('delete-subscription-plan');
 });
 
 // Admin dashboard redirect

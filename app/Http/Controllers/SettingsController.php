@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AppSettings;
 use App\Models\AdminCredential;
+use App\Models\SubscriptionPlan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -521,5 +522,132 @@ class SettingsController extends Controller
                 'description' => $description,
             ]);
         }
+    }
+
+    /**
+     * Display subscription plans management page
+     */
+    public function subscriptionPlans()
+    {
+        $plans = SubscriptionPlan::all();
+        return view('settings.subscription-plans', compact('plans'));
+    }
+
+    /**
+     * Store a new subscription plan
+     */
+    public function storeSubscriptionPlan(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'slug' => 'required|string|max:255|unique:subscription_plans,slug',
+            'description' => 'nullable|string',
+            'price' => 'required|numeric|min:0',
+            'currency' => 'required|string|size:3',
+            'interval' => 'required|in:month,year',
+            'trial_days' => 'nullable|integer|min:0',
+            'features' => 'nullable|string',
+            'is_active' => 'boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput();
+        }
+
+        try {
+            $features = [];
+            if ($request->filled('features')) {
+                $features = array_map('trim', explode("\n", $request->input('features')));
+                $features = array_filter($features, function($feature) {
+                    return !empty($feature);
+                });
+            }
+
+            SubscriptionPlan::create([
+                'name' => $request->input('name'),
+                'slug' => $request->input('slug'),
+                'description' => $request->input('description'),
+                'price' => $request->input('price'),
+                'currency' => strtoupper($request->input('currency')),
+                'interval' => $request->input('interval'),
+                'trial_days' => $request->input('trial_days', 0),
+                'features' => $features,
+                'is_active' => $request->input('is_active', true),
+            ]);
+
+            session()->flash('success', 'Subscription plan created successfully!');
+            return redirect()->route('subscription-plans');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to create subscription plan: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Update an existing subscription plan
+     */
+    public function updateSubscriptionPlan(Request $request, SubscriptionPlan $plan)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'slug' => 'required|string|max:255|unique:subscription_plans,slug,' . $plan->id,
+            'description' => 'nullable|string',
+            'price' => 'required|numeric|min:0',
+            'currency' => 'required|string|size:3',
+            'interval' => 'required|in:month,year',
+            'trial_days' => 'nullable|integer|min:0',
+            'features' => 'nullable|string',
+            'is_active' => 'boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput();
+        }
+
+        try {
+            $features = [];
+            if ($request->filled('features')) {
+                $features = array_map('trim', explode("\n", $request->input('features')));
+                $features = array_filter($features, function($feature) {
+                    return !empty($feature);
+                });
+            }
+
+            $plan->update([
+                'name' => $request->input('name'),
+                'slug' => $request->input('slug'),
+                'description' => $request->input('description'),
+                'price' => $request->input('price'),
+                'currency' => strtoupper($request->input('currency')),
+                'interval' => $request->input('interval'),
+                'trial_days' => $request->input('trial_days', 0),
+                'features' => $features,
+                'is_active' => $request->input('is_active', true),
+            ]);
+
+            session()->flash('success', 'Subscription plan updated successfully!');
+            return redirect()->route('subscription-plans');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to update subscription plan: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Delete a subscription plan
+     */
+    public function deleteSubscriptionPlan(SubscriptionPlan $plan)
+    {
+        try {
+            // Check if plan has active subscriptions
+            if ($plan->payments()->where('status', 'active')->exists()) {
+                return back()->with('error', 'Cannot delete plan with active subscriptions. Please deactivate the plan instead.');
+            }
+
+            $plan->delete();
+            session()->flash('success', 'Subscription plan deleted successfully!');
+        } catch (\Exception $e) {
+            session()->flash('error', 'Failed to delete subscription plan: ' . $e->getMessage());
+        }
+
+        return redirect()->route('subscription-plans');
     }
 }
