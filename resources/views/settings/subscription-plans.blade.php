@@ -51,7 +51,7 @@
                         </td>
                         <td class="px-4 py-3 text-right">
                             <button type="button" onclick="editPlan({{ $plan->id }}, '{{ addslashes($plan->name) }}', '{{ $plan->slug }}', '{{ addslashes($plan->description) }}', {{ $plan->price }}, '{{ $plan->currency }}', '{{ $plan->interval }}', {{ $plan->trial_days }}, {{ $plan->is_active ? 'true' : 'false' }}, {{ json_encode($plan->features) }})" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit</button>
-                            <form action="{{ route('delete-subscription-plan', $plan->id) }}" method="POST" class="inline">
+                            <form action="{{ route('settings.delete-subscription-plan', $plan->id) }}" method="POST" class="inline">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" onclick="return confirm('Are you sure? This cannot be undone.')" class="text-red-600 hover:text-red-800 text-sm font-medium ml-2">Delete</button>
@@ -73,7 +73,7 @@
     <div class="bg-white rounded-lg shadow-lg max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
         <h2 class="text-xl font-bold text-gray-900 mb-4">Add Subscription Plan</h2>
 
-        <form action="{{ route('store-subscription-plan') }}" method="POST" class="space-y-4">
+        <form action="{{ route('settings.store-subscription-plan') }}" method="POST" class="space-y-4">
             @csrf
 
             <div>
@@ -225,7 +225,8 @@
         }
         document.getElementById('edit_features').value = featuresText;
 
-        document.getElementById('editForm').action = `/settings/subscription-plans/${id}`;
+        const baseUrl = "{{ route('settings.update-subscription-plan', 'PLAN_ID') }}".replace('PLAN_ID', id);
+        document.getElementById('editForm').action = baseUrl;
         document.getElementById('editPlanModal').classList.remove('hidden');
     }
 
