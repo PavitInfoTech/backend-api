@@ -549,10 +549,10 @@ class SettingsController extends Controller
             'description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
             'currency' => 'required|string|size:3',
-            'interval' => 'required|in:month,year',
+            'interval' => 'required|in:month,year,once',
             'trial_days' => 'nullable|integer|min:0',
             'features' => 'nullable|string',
-            'is_active' => 'boolean',
+            'is_active' => 'required|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -572,8 +572,10 @@ class SettingsController extends Controller
             $intervalMap = [
                 'month' => 'monthly',
                 'year' => 'yearly',
+                'once' => 'one-time',
                 'monthly' => 'monthly',
                 'yearly' => 'yearly',
+                'one-time' => 'one-time',
             ];
             $interval = $intervalMap[$request->input('interval')] ?? 'monthly';
 
@@ -586,11 +588,11 @@ class SettingsController extends Controller
                 'interval' => $interval,
                 'trial_days' => $request->input('trial_days', 0),
                 'features' => $features,
-                'is_active' => $request->input('is_active', true),
+                'is_active' => (bool)$request->input('is_active', 0),
             ]);
 
             session()->flash('success', 'Subscription plan created successfully!');
-            return redirect()->route('subscription-plans');
+            return redirect()->route('settings.subscription-plans');
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to create subscription plan: ' . $e->getMessage());
         }
@@ -607,10 +609,10 @@ class SettingsController extends Controller
             'description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
             'currency' => 'required|string|size:3',
-            'interval' => 'required|in:month,year',
+            'interval' => 'required|in:month,year,once',
             'trial_days' => 'nullable|integer|min:0',
             'features' => 'nullable|string',
-            'is_active' => 'boolean',
+            'is_active' => 'required|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -630,8 +632,10 @@ class SettingsController extends Controller
             $intervalMap = [
                 'month' => 'monthly',
                 'year' => 'yearly',
+                'once' => 'one-time',
                 'monthly' => 'monthly',
                 'yearly' => 'yearly',
+                'one-time' => 'one-time',
             ];
             $interval = $intervalMap[$request->input('interval')] ?? 'monthly';
 
@@ -644,7 +648,7 @@ class SettingsController extends Controller
                 'interval' => $interval,
                 'trial_days' => $request->input('trial_days', 0),
                 'features' => $features,
-                'is_active' => $request->input('is_active', true),
+                'is_active' => (bool)$request->input('is_active', 0),
             ]);
 
             session()->flash('success', 'Subscription plan updated successfully!');

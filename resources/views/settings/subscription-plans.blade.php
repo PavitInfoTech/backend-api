@@ -129,7 +129,8 @@
             </div>
 
             <div class="flex items-center">
-                <input type="checkbox" id="is_active" name="is_active" checked class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
+                <input type="hidden" name="is_active" value="0">
+                <input type="checkbox" id="is_active" name="is_active" value="1" checked class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
                 <label for="is_active" class="ml-2 block text-sm text-gray-900">Active</label>
             </div>
 
@@ -200,7 +201,8 @@
             </div>
 
             <div class="flex items-center">
-                <input type="checkbox" id="edit_is_active" name="is_active" class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
+                <input type="hidden" name="is_active" value="0">
+                <input type="checkbox" id="edit_is_active" name="is_active" value="1" class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
                 <label for="edit_is_active" class="ml-2 block text-sm text-gray-900">Active</label>
             </div>
 
