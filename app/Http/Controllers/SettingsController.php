@@ -655,4 +655,99 @@ class SettingsController extends Controller
 
         return redirect()->route('subscription-plans');
     }
+
+    /**
+     * Bulk import subscription plans from JSON
+     */
+    public function bulkImportSubscriptionPlans(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'json_data' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->with('error', 'Invalid input.');
+        }
+
+        try {
+            // Parse JSON data
+            $data = json_decode($request->input('json_data'), true);
+            
+            if (!is_array($data)) {
+                return back()->with('error', 'JSON must contain an array of plans.');
+            }
+
+            // If single object, wrap in array
+            if (!empty($data) && !isset($data[0])) {
+                $data = [$data];
+            }
+
+            if (empty($data)) {
+                return back()->with('error', 'No plans found in JSON data.');
+            }
+
+            $imported = 0;
+            $errors = [];
+            $duplicates = [];
+
+            foreach ($data as $index => $item) {
+                try {
+                    // Extract required fields
+                    $slug = $item['slug'] ?? null;
+                    $name = $item['name'] ?? null;
+                    $price = $item['price'] ?? null;
+
+                    if (!$slug || !$name || $price === null) {
+                        $errors[] = "Plan #" . ($index + 1) . ": Missing required fields (slug, name, price)";
+                        continue;
+                    }
+
+                    // Check if plan with this slug already exists
+                    if (SubscriptionPlan::where('slug', $slug)->exists()) {
+                        $duplicates[] = $slug;
+                        continue;
+                    }
+
+                    // Process features array
+                    $features = [];
+                    if (isset($item['features']) && is_array($item['features'])) {
+                        $features = $item['features'];
+                    }
+
+                    // Create the plan
+                    SubscriptionPlan::create([
+                        'name' => $name,
+                        'slug' => $slug,
+                        'description' => $item['description'] ?? null,
+                        'price' => $price,
+                        'currency' => $item['currency'] ?? 'USD',
+                        'interval' => $item['interval'] ?? 'month',
+                        'trial_days' => $item['trial_days'] ?? 0,
+                        'features' => $features,
+                        'is_active' => $item['is_active'] ?? ($item['popular'] ?? true), // Use popular flag if is_active not provided
+                    ]);
+
+                    $imported++;
+                } catch (\Exception $e) {
+                    $errors[] = "Plan #" . ($index + 1) . ": " . $e->getMessage();
+                }
+            }
+
+            $message = "Successfully imported $imported plan(s).";
+            if (!empty($duplicates)) {
+                $message .= " Skipped " . count($duplicates) . " duplicate(s): " . implode(', ', $duplicates) . ".";
+            }
+            if (!empty($errors)) {
+                $message .= " " . count($errors) . " error(s): " . implode(" | ", array_slice($errors, 0, 3));
+                if (count($errors) > 3) {
+                    $message .= " ... and " . (count($errors) - 3) . " more.";
+                }
+            }
+
+            session()->flash('success', $message);
+            return redirect()->route('settings.subscription-plans');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to parse JSON: ' . $e->getMessage());
+        }
+    }
 }

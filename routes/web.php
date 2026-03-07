@@ -48,6 +48,7 @@ Route::middleware('auth.admin')->prefix('settings')->name('settings.')->group(fu
     // Subscription plans management
     Route::get('/subscription-plans', [SettingsController::class, 'subscriptionPlans'])->name('subscription-plans');
     Route::post('/subscription-plans', [SettingsController::class, 'storeSubscriptionPlan'])->name('store-subscription-plan');
+    Route::post('/subscription-plans/bulk-import', [SettingsController::class, 'bulkImportSubscriptionPlans'])->name('bulk-import-subscription-plans');
     Route::put('/subscription-plans/{plan}', [SettingsController::class, 'updateSubscriptionPlan'])->name('update-subscription-plan');
     Route::delete('/subscription-plans/{plan}', [SettingsController::class, 'deleteSubscriptionPlan'])->name('delete-subscription-plan');
 });
