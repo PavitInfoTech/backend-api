@@ -113,6 +113,7 @@
                     <select id="interval" name="interval" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" required>
                         <option value="month">Monthly</option>
                         <option value="year">Yearly</option>
+                        <option value="once">One-time</option>
                     </select>
                 </div>
 
@@ -183,6 +184,7 @@
                     <select id="edit_interval" name="interval" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" required>
                         <option value="month">Monthly</option>
                         <option value="year">Yearly</option>
+                        <option value="once">One-time</option>
                     </select>
                 </div>
 
@@ -217,7 +219,17 @@
         document.getElementById('edit_description').value = description || '';
         document.getElementById('edit_price').value = price;
         document.getElementById('edit_currency').value = currency;
-        document.getElementById('edit_interval').value = interval;
+        
+        // Map database interval values to form values
+        const intervalMap = {
+            'monthly': 'month',
+            'yearly': 'year',
+            'one-time': 'once',
+            'month': 'month',
+            'year': 'year'
+        };
+        document.getElementById('edit_interval').value = intervalMap[interval] || interval;
+        
         document.getElementById('edit_trial_days').value = trialDays || '';
         document.getElementById('edit_is_active').checked = isActive;
 
@@ -276,6 +288,7 @@
                 <label for="json_data" class="block text-sm font-medium text-gray-700 mb-2">JSON Data</label>
                 <textarea id="json_data" name="json_data" rows="12" placeholder='[&#10;  {&#10;    "slug": "basic",&#10;    "name": "Basic Plan",&#10;    "price": 0,&#10;    "description": "Free plan",&#10;    "features": ["Feature 1", "Feature 2"],&#10;    "currency": "USD",&#10;    "interval": "month"&#10;  }&#10;]' class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono text-xs"></textarea>
                 <p class="text-gray-500 text-xs mt-1">Optional fields: description, features (array), currency (default USD), interval (default month), trial_days, is_active, popular</p>
+                <p class="text-gray-500 text-xs mt-1"><strong>Interval values:</strong> "month" → Monthly, "year" → Yearly, "once" → One-time</p>
             </div>
 
             <div class="bg-blue-50 border border-blue-200 p-3 rounded-md text-sm text-blue-800">

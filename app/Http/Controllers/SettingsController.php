@@ -568,13 +568,22 @@ class SettingsController extends Controller
                 });
             }
 
+            // Map interval values to database enum
+            $intervalMap = [
+                'month' => 'monthly',
+                'year' => 'yearly',
+                'monthly' => 'monthly',
+                'yearly' => 'yearly',
+            ];
+            $interval = $intervalMap[$request->input('interval')] ?? 'monthly';
+
             SubscriptionPlan::create([
                 'name' => $request->input('name'),
                 'slug' => $request->input('slug'),
                 'description' => $request->input('description'),
                 'price' => $request->input('price'),
                 'currency' => strtoupper($request->input('currency')),
-                'interval' => $request->input('interval'),
+                'interval' => $interval,
                 'trial_days' => $request->input('trial_days', 0),
                 'features' => $features,
                 'is_active' => $request->input('is_active', true),
@@ -617,13 +626,22 @@ class SettingsController extends Controller
                 });
             }
 
+            // Map interval values to database enum
+            $intervalMap = [
+                'month' => 'monthly',
+                'year' => 'yearly',
+                'monthly' => 'monthly',
+                'yearly' => 'yearly',
+            ];
+            $interval = $intervalMap[$request->input('interval')] ?? 'monthly';
+
             $plan->update([
                 'name' => $request->input('name'),
                 'slug' => $request->input('slug'),
                 'description' => $request->input('description'),
                 'price' => $request->input('price'),
                 'currency' => strtoupper($request->input('currency')),
-                'interval' => $request->input('interval'),
+                'interval' => $interval,
                 'trial_days' => $request->input('trial_days', 0),
                 'features' => $features,
                 'is_active' => $request->input('is_active', true),
@@ -714,6 +732,21 @@ class SettingsController extends Controller
                         $features = $item['features'];
                     }
 
+                    // Map interval values to database enum values
+                    $rawInterval = $item['interval'] ?? 'month';
+                    $intervalMap = [
+                        'month' => 'monthly',
+                        'm' => 'monthly',
+                        'monthly' => 'monthly',
+                        'year' => 'yearly',
+                        'y' => 'yearly',
+                        'yearly' => 'yearly',
+                        'once' => 'one-time',
+                        'one-time' => 'one-time',
+                        'onetime' => 'one-time',
+                    ];
+                    $interval = $intervalMap[strtolower($rawInterval)] ?? 'monthly';
+
                     // Create the plan
                     SubscriptionPlan::create([
                         'name' => $name,
@@ -721,7 +754,7 @@ class SettingsController extends Controller
                         'description' => $item['description'] ?? null,
                         'price' => $price,
                         'currency' => $item['currency'] ?? 'USD',
-                        'interval' => $item['interval'] ?? 'month',
+                        'interval' => $interval,
                         'trial_days' => $item['trial_days'] ?? 0,
                         'features' => $features,
                         'is_active' => $item['is_active'] ?? ($item['popular'] ?? true), // Use popular flag if is_active not provided
