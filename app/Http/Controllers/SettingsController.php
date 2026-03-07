@@ -586,7 +586,7 @@ class SettingsController extends Controller
                 'price' => $request->input('price'),
                 'currency' => strtoupper($request->input('currency')),
                 'interval' => $interval,
-                'trial_days' => $request->input('trial_days', 0),
+                'trial_days' => (int)($request->input('trial_days') ?? 0),
                 'features' => $features,
                 'is_active' => (bool)$request->input('is_active', 0),
             ]);
@@ -646,13 +646,13 @@ class SettingsController extends Controller
                 'price' => $request->input('price'),
                 'currency' => strtoupper($request->input('currency')),
                 'interval' => $interval,
-                'trial_days' => $request->input('trial_days', 0),
+                'trial_days' => (int)($request->input('trial_days') ?? 0),
                 'features' => $features,
                 'is_active' => (bool)$request->input('is_active', 0),
             ]);
 
             session()->flash('success', 'Subscription plan updated successfully!');
-            return redirect()->route('subscription-plans');
+            return redirect()->route('settings.subscription-plans');
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to update subscription plan: ' . $e->getMessage());
         }
@@ -759,7 +759,7 @@ class SettingsController extends Controller
                         'price' => $price,
                         'currency' => $item['currency'] ?? 'USD',
                         'interval' => $interval,
-                        'trial_days' => $item['trial_days'] ?? 0,
+                        'trial_days' => (int)($item['trial_days'] ?? 0),
                         'features' => $features,
                         'is_active' => $item['is_active'] ?? ($item['popular'] ?? true), // Use popular flag if is_active not provided
                     ]);
