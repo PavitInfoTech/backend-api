@@ -302,7 +302,12 @@ class SettingsController extends Controller
             $this->storeSetting('google_maps_api_key', $request->input('google_maps_api_key'), 'api', 'Google Maps API Key', true);
             $this->storeSetting('gorq_api_key', $request->input('gorq_api_key'), 'api', 'Gorq API Key', true);
             $this->storeSetting('gorq_base_url', $request->input('gorq_base_url'), 'api', 'Gorq Base URL');
-            $this->storeSetting('gorq_default_model', $request->input('gorq_default_model'), 'api', 'Gorq Default Model');
+            // Always save gorq_default_model, even if empty (will use default)
+            AppSettings::setSetting('gorq_default_model', $request->input('gorq_default_model', 'gpt-4o-mini'), [
+                'category' => 'api',
+                'is_encrypted' => false,
+                'description' => 'Gorq Default Model',
+            ]);
 
             // Frontend Settings
             $this->storeSetting('frontend_url', $request->input('frontend_url'), 'general', 'Frontend URL');

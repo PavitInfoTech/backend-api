@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Services\GorqService;
 use App\Models\AiRequest;
 use App\Jobs\ProcessAiRequest;
+use App\Models\AppSettings;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
@@ -58,7 +59,7 @@ class AIController extends ApiController
         // Create an AiRequest log entry
         $aiRequest = AiRequest::create([
             'user_id' => $request->user()?->id,
-            'model' => $validated['model'] ?? env('GORQ_DEFAULT_MODEL'),
+            'model' => $validated['model'] ?? AppSettings::getSetting('gorq_default_model') ?? env('GORQ_DEFAULT_MODEL', 'gpt-4o-mini'),
             'prompt' => $prompt,
             'status' => 'pending',
             'meta' => [
@@ -94,7 +95,7 @@ class AIController extends ApiController
         // Synchronous processing: call Gorq and store result
         $payload = [
             'messages' => $aiRequest->meta['messages'] ?? [['role' => 'user', 'content' => $aiRequest->prompt]],
-            'model' => $aiRequest->model,
+            'model' => $aiRequest->model ?? AppSettings::getSetting('gorq_default_model') ?? env('GORQ_DEFAULT_MODEL', 'gpt-4o-mini'),
             'max_tokens' => $aiRequest->meta['max_tokens'] ?? 256,
         ];
 

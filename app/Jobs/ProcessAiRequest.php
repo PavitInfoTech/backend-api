@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\AiRequest;
+use App\Models\AppSettings;
 use App\Services\GorqService;
 use Exception;
 use Illuminate\Bus\Queueable;
@@ -38,7 +39,7 @@ class ProcessAiRequest implements ShouldQueue
             // Build payload using 'messages' if present in meta, otherwise fallback to prompt
             $payload = [
                 'messages' => $aiReq->meta['messages'] ?? [['role' => 'user', 'content' => $aiReq->prompt]],
-                'model' => $aiReq->model ?? env('GORQ_DEFAULT_MODEL'),
+                'model' => $aiReq->model ?? AppSettings::getSetting('gorq_default_model') ?? env('GORQ_DEFAULT_MODEL', 'gpt-4o-mini'),
             ];
 
             $result = $this->gorq->generate($payload);
