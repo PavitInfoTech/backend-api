@@ -23,7 +23,7 @@ class AuthController extends ApiController
     {
         $rules = [
             'username' => 'required|string|max:255|unique:users,username',
-            'first_name' => 'required|string|max:255',
+            'first_name' => 'nullable|string|max:255',
             'last_name' => 'nullable|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password_hash' => 'required|string|size:64', // SHA-256 hash (64 hex chars)
