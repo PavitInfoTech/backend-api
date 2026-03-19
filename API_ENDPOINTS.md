@@ -1,7 +1,7 @@
 # Backend API Endpoints Documentation
 
 **Version**: 1.0  
-**Base URL**: `http://localhost/api` (or your domain)  
+**Base URL**: `(http://localhost/api)` (or your domain)  
 **API Response Format**: All responses are JSON  
 
 ---
@@ -398,6 +398,28 @@ Authorization: Bearer <token>
 **Request Body**:
 ```json
 {
+  "provider": "google"
+}
+```
+
+---
+
+### 13. OAuth Callback Redirect (External)
+**Endpoint**: `GET /api/auth/{provider}/redirect`  
+**Auth Required**: ❌ No  
+**Rate Limit**: Standard  
+
+**Response**: Redirects to OAuth provider (Google/GitHub).  
+
+**Post-Authentication Redirect**:  
+Upon successful login/registration via the OAuth provider, the backend system redirects the user back to the frontend application with an authenticated system `token`.
+
+**Target URL**: `https://frontend.com/auth/complete?token={api_token}`
+
+**Query Parameters**:
+- `token`: The internal API token generated for the authenticated user.
+
+---
   "provider": "google"
 }
 ```
