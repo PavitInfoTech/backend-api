@@ -1147,20 +1147,35 @@ X-Webhook-Signature: signature_token
 **Response (Synchronous)** (200 OK):
 ```json
 {
-  "status": "success",
-  "message": "Generation completed",
-  "data": {
-    "id": 1,
-    "user_id": null,
-    "model": "gpt-4o-mini",
-    "prompt": "Write a short poem about artificial intelligence",
-    "response": "In circuits deep and networks vast,\nAI learns from present, future, past...",
-    "status": "completed",
-    "tokens_used": 42,
-    "created_at": "2026-02-24T12:00:00Z"
-  },
-  "code": 200,
-  "timestamp": "2026-02-24T12:00:00Z"
+    "status": "success",
+    "message": "AI generation result",
+    "data": {
+        "id": "chatcmpl-1b5cc4d6-33f1-41ad-8995-e333b1a06f66",
+        "object": "chat.completion",
+        "created": 1774003192,
+        "model": "llama-3.1-8b-instant",
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "It seems like you're looking for general information about hell..."
+                },
+                "logprobs": null,
+                "finish_reason": "stop"
+            }
+        ],
+        "usage": {
+            "queue_time": 0.0725,
+            "prompt_tokens": 36,
+            "completion_tokens": 185,
+            "total_tokens": 221
+        },
+        "system_fingerprint": "fp_d317489708",
+        "timestamp": "2026-03-20T10:39:52+00:00"
+    },
+    "code": 200,
+    "timestamp": "2026-03-20T10:39:52+00:00"
 }
 ```
 
