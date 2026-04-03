@@ -637,28 +637,52 @@ avatar: <image_file>
   "data": [
     {
       "id": 1,
-      "name": "Basic",
-      "slug": "basic",
-      "description": "Basic plan with essential features",
-      "price": 9.99,
+      "name": "Starter",
+      "slug": "starter",
+      "description": "For small teams getting started with data convergence.",
+      "price": 49.00,
+      "monthly_price": 49.00,
+      "yearly_price": 39.00,
       "currency": "USD",
       "interval": "monthly",
-      "trial_days": 7,
-      "features": ["Feature 1", "Feature 2"],
+      "trial_days": 0,
+      "features": ["Up to 5 data sources", "10K records/month", "Core analytics", "Email support", "1 user seat"],
       "is_active": true,
+      "popular": false,
       "created_at": "2026-02-24T10:00:00Z",
       "updated_at": "2026-02-24T10:00:00Z"
     },
     {
       "id": 2,
-      "name": "Pro",
-      "slug": "pro",
-      "price": 29.99,
+      "name": "Professional",
+      "slug": "professional",
+      "description": "For growing businesses with complex data needs.",
+      "price": 149.00,
+      "monthly_price": 149.00,
+      "yearly_price": 119.00,
       "currency": "USD",
       "interval": "monthly",
-      "trial_days": 14,
-      "features": ["Feature 1", "Feature 2", "Feature 3"],
+      "trial_days": 0,
+      "features": ["Unlimited data sources", "1M records/month", "Advanced analytics & ML", "Priority support", "10 user seats", "Custom dashboards"],
       "is_active": true,
+      "popular": true,
+      "created_at": "2026-02-24T10:00:00Z",
+      "updated_at": "2026-02-24T10:00:00Z"
+    },
+    {
+      "id": 3,
+      "name": "Enterprise",
+      "slug": "enterprise",
+      "description": "For large organizations requiring full control.",
+      "price": null,
+      "monthly_price": null,
+      "yearly_price": null,
+      "currency": "USD",
+      "interval": "monthly",
+      "trial_days": 0,
+      "features": ["Unlimited everything", "Dedicated infrastructure", "SSO & SAML", "24/7 phone support", "Unlimited seats", "Custom SLAs", "On-premises option"],
+      "is_active": true,
+      "popular": false,
       "created_at": "2026-02-24T10:00:00Z",
       "updated_at": "2026-02-24T10:00:00Z"
     }
@@ -689,10 +713,18 @@ avatar: <image_file>
   "message": "Plan retrieved",
   "data": {
     "id": 2,
-    "name": "Pro",
-    "slug": "pro",
-    "price": 29.99,
-    ...
+    "name": "Professional",
+    "slug": "professional",
+    "description": "For growing businesses with complex data needs.",
+    "price": 149.00,
+    "monthly_price": 149.00,
+    "yearly_price": 119.00,
+    "currency": "USD",
+    "interval": "monthly",
+    "trial_days": 0,
+    "features": ["Unlimited data sources", "1M records/month", "Advanced analytics & ML", "Priority support"],
+    "is_active": true,
+    "popular": true
   },
   "code": 200,
   "timestamp": "2026-02-24T12:00:00Z"
@@ -1000,19 +1032,24 @@ avatar: <image_file>
 {
   "name": "Enterprise",
   "slug": "enterprise",
-  "description": "Enterprise plan for large teams",
-  "price": 299.99,
+  "description": "For large organizations requiring full control.",
+  "monthly_price": null,
+  "yearly_price": null,
   "currency": "USD",
-  "interval": "yearly",
-  "trial_days": 30,
-  "features": ["Feature 1", "Feature 2", "Feature 3", "Custom features"],
-  "is_active": true
+  "trial_days": 0,
+  "features": ["Unlimited everything", "Dedicated infrastructure", "SSO & SAML", "24/7 phone support"],
+  "is_active": true,
+  "popular": false
 }
 ```
 
 **Notes**:
 - Public endpoint - anyone can create plans
 - Slug must be unique
+- Supports new pricing structure: `monthly_price` and `yearly_price` (both optional, can be null)
+- Also accepts legacy format with `price` and `interval` for backward compatibility
+- `popular` flag indicates if this is a featured/highlighted plan
+- If only `price` provided (legacy), it will be auto-mapped to appropriate field based on `interval`
 
 **Response** (201 Created):
 ```json
@@ -1038,6 +1075,20 @@ avatar: <image_file>
 **Rate Limit**: Standard  
 
 **Request Body**: Same as create (partial update possible)
+
+**Example Partial Update**:
+```json
+{
+  "monthly_price": 99.99,
+  "yearly_price": 79.99,
+  "popular": true
+}
+```
+
+**Notes**:
+- Any field can be updated individually
+- Supports both new pricing fields (`monthly_price`, `yearly_price`) and legacy field (`price`)
+- If legacy format used, automatically converts to new structure
 
 **Response** (200 OK)
 
@@ -1098,6 +1149,68 @@ X-Webhook-Signature: signature_token
 - Called by external payment processors (Stripe, PayPal, etc.)
 - Uses webhook signature verification if configured
 - Processes payment updates asynchronously
+
+---
+
+## Admin & Settings Endpoints
+
+### 1. Update Subscription Plans Schema (Database Migration)
+**Endpoint**: `POST /settings/subscription-plans/update-schema`  
+**Auth Required**: ✅ Yes (Admin Auth)  
+**Rate Limit**: Standard  
+
+**Notes**:
+- Allows existing customers to upgrade their database schema
+- Runs new migration for pricing structure (`monthly_price`, `yearly_price`, `popular` columns)
+- Automatically populates new pricing columns from existing data
+- Existing plans are preserved and converted to new format
+- No request body required
+
+**Response** (302 Redirect - with flash message):
+```
+Location: /settings/subscription-plans
+Flash Success: "Database schema updated successfully!"
+```
+
+---
+
+### 2. Bulk Import Subscription Plans
+**Endpoint**: `POST /settings/subscription-plans/bulk-import`  
+**Auth Required**: ✅ Yes (Admin Auth)  
+**Rate Limit**: Standard  
+
+**Request Body** (Form Data):
+```
+json_data: [
+  {
+    name: "Starter",
+    slug: "starter",
+    monthlyPrice: 49,
+    yearlyPrice: 39,
+    description: "For small teams",
+    features: ["Feature 1", "Feature 2"],
+    popular: false
+  }
+]
+```
+
+**Supported Formats**:
+- JavaScript object notation (unquoted keys) - `{ name: "value" }`
+- Strict JSON (quoted keys) - `{ "name": "value" }`
+- Legacy format - `{ price: 29.99, interval: "monthly" }`
+
+**Notes**:
+- Required fields: `name`, `slug`
+- Optional fields: `monthlyPrice`, `yearlyPrice`, `price`, `description`, `features`, `currency`, `interval`, `trial_days`, `is_active`, `popular`
+- Unquoted property names are automatically converted to valid JSON
+- Skips plans with duplicate slugs
+- Reports import success, duplicates, and any errors
+
+**Response** (302 Redirect):
+```
+Flash Success: "Successfully imported X plan(s)."
+Location: /settings/subscription-plans
+```
 
 ---
 

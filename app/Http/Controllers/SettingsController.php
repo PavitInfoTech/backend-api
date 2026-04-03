@@ -695,6 +695,10 @@ class SettingsController extends Controller
         try {
             $jsonInput = $request->input('json_data');
             
+            // Remove trailing commas (valid in JS but not JSON)
+            // Remove commas before closing brackets/braces
+            $jsonInput = preg_replace('/,(\s*[\]}])/', '$1', $jsonInput);
+            
             // Convert JavaScript object notation (unquoted keys) to valid JSON
             // This regex adds quotes around unquoted property names
             $jsonInput = preg_replace('/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/', '$1"$2":', $jsonInput);
