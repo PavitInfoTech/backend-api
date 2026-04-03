@@ -34,6 +34,18 @@ trait DatabaseSetupCheck
     }
 
     /**
+     * Run cache clear safely since the cache table may not exist yet.
+     */
+    protected function safeClearCache()
+    {
+        try {
+            \Illuminate\Support\Facades\Artisan::call('cache:clear');
+        } catch (\Throwable $e) {
+            // If cache table is missing or cache driver misconfigured, ignore.
+        }
+    }
+
+    /**
      * Refresh DB connection to pick up environment settings.
      *
      * @param array|null $databaseConfig

@@ -69,7 +69,7 @@ class SetupController extends Controller
 
         try {
             Artisan::call('config:clear');
-            Artisan::call('cache:clear');
+            $this->safeClearCache();
 
             $this->refreshDatabaseConnection();
             Artisan::call('migrate', ['--force' => true]);
@@ -114,7 +114,7 @@ class SetupController extends Controller
 
             // Reload config and DB connection using supplied credentials so migrate uses this new DB.
             Artisan::call('config:clear');
-            Artisan::call('cache:clear');
+            $this->safeClearCache();
             $this->refreshDatabaseConnection([
                 'driver' => 'mysql',
                 'host' => $request->input('db_host'),
