@@ -10,6 +10,10 @@ Route::get('/setup', [SetupController::class, 'index'])->name('setup.index');
 Route::post('/setup/env', [SetupController::class, 'storeEnv'])->name('setup.store-env');
 Route::post('/setup/admin', [SetupController::class, 'storeAdminSetup'])->name('setup.store-admin');
 
+// Database migration health endpoints
+Route::get('/setup/db-check', [SetupController::class, 'dbCheck'])->name('setup.db-check');
+Route::post('/setup/run-migrations', [SetupController::class, 'runMigrations'])->name('setup.run-migrations');
+
 // Admin login routes
 Route::get('/admin/login', [AdminAuthController::class, 'showLogin'])->name('admin.login');
 Route::post('/admin/login', [AdminAuthController::class, 'login']);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\DatabaseSetupCheck;
 use App\Models\AdminCredential;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -9,6 +10,7 @@ use Illuminate\Support\Facades\Validator;
 
 class AdminAuthController extends Controller
 {
+    use DatabaseSetupCheck;
     /**
      * Show login form
      */
@@ -18,6 +20,10 @@ class AdminAuthController extends Controller
         $installed = env('APP_INSTALLED');
         if (!$installed || $installed === 'false') {
             return redirect()->route('setup.index');
+        }
+
+        if (! $this->isDatabaseReady()) {
+            return redirect()->route('setup.db-check')->with('error', 'Database setup is incomplete; run migrations first.');
         }
 
         if (session('admin')) {
@@ -47,9 +53,17 @@ class AdminAuthController extends Controller
             return back()->withErrors($validator)->withInput();
         }
 
-        $credential = AdminCredential::active()
-            ->where('username', $request->input('username'))
-            ->first();
+        if (! $this->isDatabaseReady()) {
+            return redirect()->route('setup.db-check')->with('error', 'Database tables are missing. Migrate database before login.');
+        }
+
+        try {
+            $credential = AdminCredential::active()
+                ->where('username', $request->input('username'))
+                ->first();
+        } catch (\Throwable $e) {
+            return redirect()->route('setup.db-check')->with('error', 'Database query failed: ' . $e->getMessage());
+        }
 
         if (!$credential || !Hash::check($request->input('password'), $credential->password)) {
             return back()->with('error', 'Invalid username or password.');

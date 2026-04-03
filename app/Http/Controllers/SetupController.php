@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\DatabaseSetupCheck;
 use App\Models\AppSettings;
 use App\Models\AdminCredential;
 use Illuminate\Http\Request;
@@ -12,35 +13,75 @@ use Illuminate\Support\Facades\File;
 
 class SetupController extends Controller
 {
+    use DatabaseSetupCheck;
+
     /**
      * Show setup page or redirect if already installed
      */
     public function index()
     {
-        // If .env does not exist OR the application is not marked installed,
-        // show the full setup form so the operator can provide DB and admin
-        // credentials. We avoid querying the database here because it may not
-        // be initialized yet.
         $envExists = $this->isEnvExists();
         $appInstalled = env('APP_INSTALLED');
 
-        if (! $envExists || !$appInstalled || $appInstalled === 'false') {
+        if (! $envExists || ! $appInstalled || $appInstalled === 'false') {
             return view('setup.index');
         }
 
-        // At this point the environment reports installed; safe to check DB.
+        if (! $this->isDatabaseReady()) {
+            return view('setup.db-check');
+        }
+
         try {
             if (AdminCredential::active()->exists()) {
                 return redirect()->route('admin.login');
             }
+
+            return view('setup.admin-setup');
         } catch (\Throwable $e) {
-            // if something goes wrong querying the database, just send user to
-            // the login page instead of blowing up with a 500. This prevents
-            // rare race conditions during early deployment.
-            return redirect()->route('admin.login');
+            return view('setup.db-check')->with('error', 'Database check failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Display database check / re-run migration view
+     */
+    public function dbCheck()
+    {
+        if (! $this->isEnvExists()) {
+            return redirect()->route('setup.index');
         }
 
-        return view('setup.admin-setup');
+        if ($this->isDatabaseReady()) {
+            return redirect()->route('setup.index')->with('success', 'Database tables already exist.');
+        }
+
+        return view('setup.db-check');
+    }
+
+    /**
+     * Run migrations if tables are missing
+     */
+    public function runMigrations(Request $request)
+    {
+        if (! $this->isEnvExists()) {
+            return redirect()->route('setup.index')->with('error', 'Environment file not found. Please complete setup first.');
+        }
+
+        try {
+            Artisan::call('config:clear');
+            Artisan::call('cache:clear');
+
+            $this->refreshDatabaseConnection();
+            Artisan::call('migrate', ['--force' => true]);
+
+            if ($this->isDatabaseReady()) {
+                return redirect()->route('setup.index')->with('success', 'Migration successful. You may now login or continue setup.');
+            }
+
+            return redirect()->route('setup.db-check')->with('error', 'Migrations finished but some tables are still missing. Please check your DB connection and credentials.');
+        } catch (\Exception $e) {
+            return redirect()->route('setup.db-check')->with('error', 'Migration failed: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -68,10 +109,28 @@ class SetupController extends Controller
         }
 
         try {
-            // Create .env file
+            // Create .env file with user values
             $this->createEnvFile($request);
 
-            // Run migrations
+            // Reload config and DB connection using supplied credentials so migrate uses this new DB.
+            Artisan::call('config:clear');
+            Artisan::call('cache:clear');
+            $this->refreshDatabaseConnection([
+                'driver' => 'mysql',
+                'host' => $request->input('db_host'),
+                'port' => $request->input('db_port'),
+                'database' => $request->input('db_database'),
+                'username' => $request->input('db_username'),
+                'password' => $request->input('db_password'),
+                'charset' => 'utf8mb4',
+                'collation' => 'utf8mb4_unicode_ci',
+                'prefix' => '',
+                'prefix_indexes' => true,
+                'strict' => true,
+                'engine' => null,
+            ]);
+
+            // Run migrations in the newly configured database
             Artisan::call('migrate', ['--force' => true]);
 
             // Create admin credential
