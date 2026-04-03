@@ -1184,7 +1184,6 @@ Flash Success: "Database schema updated successfully!"
 json_data: [
   {
     name: "Starter",
-    slug: "starter",
     monthlyPrice: 49,
     yearlyPrice: 39,
     description: "For small teams",
@@ -1198,11 +1197,13 @@ json_data: [
 - JavaScript object notation (unquoted keys) - `{ name: "value" }`
 - Strict JSON (quoted keys) - `{ "name": "value" }`
 - Legacy format - `{ price: 29.99, interval: "monthly" }`
+- Trailing commas - `{ name: "value", }`
 
 **Notes**:
-- Required fields: `name`, `slug`
-- Optional fields: `monthlyPrice`, `yearlyPrice`, `price`, `description`, `features`, `currency`, `interval`, `trial_days`, `is_active`, `popular`
+- Required fields: `name`
+- Optional fields: `slug` (auto-generated from name if not provided), `monthlyPrice`, `yearlyPrice`, `price`, `description`, `features`, `currency`, `interval`, `trial_days`, `is_active`, `popular`
 - Unquoted property names are automatically converted to valid JSON
+- Trailing commas are supported (JavaScript-style)
 - Skips plans with duplicate slugs
 - Reports import success, duplicates, and any errors
 

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 
 class SettingsController extends Controller
 {
@@ -726,12 +727,17 @@ class SettingsController extends Controller
             foreach ($data as $index => $item) {
                 try {
                     // Extract required fields
-                    $slug = $item['slug'] ?? null;
                     $name = $item['name'] ?? null;
+                    $slug = $item['slug'] ?? null;
 
-                    if (!$slug || !$name) {
-                        $errors[] = "Plan #" . ($index + 1) . ": Missing required fields (slug, name)";
+                    if (!$name) {
+                        $errors[] = "Plan #" . ($index + 1) . ": Missing required field (name)";
                         continue;
+                    }
+
+                    // Auto-generate slug from name if not provided
+                    if (!$slug) {
+                        $slug = Str::slug($name);
                     }
 
                     // Check if plan with this slug already exists
