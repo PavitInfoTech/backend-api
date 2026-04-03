@@ -281,31 +281,34 @@
     <div class="bg-white rounded-lg shadow-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
         <h2 class="text-xl font-bold text-gray-900 mb-4">Bulk Import Plans</h2>
 
-        <p class="text-gray-600 text-sm mb-4">Paste a JSON array of subscription plans. Required fields: <code class="bg-gray-100 px-2 py-1 rounded">name</code>, <code class="bg-gray-100 px-2 py-1 rounded">slug</code></p>
+        <p class="text-gray-600 text-sm mb-4">Paste a JSON array of subscription plans. You can use unquoted property names (JavaScript object notation). Required fields: <code class="bg-gray-100 px-2 py-1 rounded">name</code>, <code class="bg-gray-100 px-2 py-1 rounded">slug</code></p>
 
         <form action="{{ route('settings.bulk-import-subscription-plans') }}" method="POST" class="space-y-4">
             @csrf
 
             <div>
                 <label for="json_data" class="block text-sm font-medium text-gray-700 mb-2">JSON Data</label>
-                <textarea id="json_data" name="json_data" rows="12" placeholder='[&#10;  {&#10;    "name": "Starter",&#10;    "slug": "starter",&#10;    "monthlyPrice": 49,&#10;    "yearlyPrice": 39,&#10;    "description": "For small teams",&#10;    "features": ["Feature 1", "Feature 2"],&#10;    "popular": false&#10;  }&#10;]' class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono text-xs"></textarea>
+                <textarea id="json_data" name="json_data" rows="12" placeholder='[&#10;  {&#10;    name: "Starter",&#10;    slug: "starter",&#10;    monthlyPrice: 49,&#10;    yearlyPrice: 39,&#10;    description: "For small teams",&#10;    features: ["Feature 1", "Feature 2"],&#10;    popular: false&#10;  }&#10;]' class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono text-xs"></textarea>
                 <p class="text-gray-500 text-xs mt-1">Optional fields: monthlyPrice, yearlyPrice, price (legacy), description, features (array), currency (default USD), interval (default monthly), trial_days, is_active, popular</p>
                 <p class="text-gray-500 text-xs mt-1"><strong>Interval values:</strong> "month" or "monthly" → Monthly, "year" or "yearly" → Yearly, "once" or "one-time" → One-time</p>
+                <p class="text-gray-500 text-xs mt-1 text-blue-600"><strong>💡 Tip:</strong> You can omit quotes around property names (e.g., <code class="bg-blue-50 px-1">name:</code> instead of <code class="bg-blue-50 px-1">"name":</code>)</p>
             </div>
 
             <div class="bg-blue-50 border border-blue-200 p-3 rounded-md text-sm text-blue-800">
-                <strong>New Structure Example:</strong>
-                <pre class="text-xs mt-2 overflow-auto">{
-  "name": "Professional",
-  "slug": "professional",
-  "monthlyPrice": 149,
-  "yearlyPrice": 119,
-  "description": "For growing businesses",
-  "features": ["Unlimited sources", "1M records/month", "Priority support"],
-  "popular": true,
-  "currency": "USD",
-  "is_active": true
-}</pre>
+                <strong>Example (Unquoted Keys - Also Valid):</strong>
+                <pre class="text-xs mt-2 overflow-auto">[
+  {
+    name: "Professional",
+    slug: "professional",
+    monthlyPrice: 149,
+    yearlyPrice: 119,
+    description: "For growing businesses",
+    features: ["Unlimited sources", "1M records/month", "Priority support"],
+    popular: true,
+    currency: "USD",
+    is_active: true
+  }
+]</pre>
             </div>
 
             <div class="flex space-x-3 pt-4">
