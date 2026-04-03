@@ -15,17 +15,23 @@ class SubscriptionPlan extends Model
         'slug',
         'description',
         'price',
+        'monthly_price',
+        'yearly_price',
         'currency',
         'interval',
         'trial_days',
         'features',
         'is_active',
+        'popular',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
+        'monthly_price' => 'decimal:2',
+        'yearly_price' => 'decimal:2',
         'features' => 'array',
         'is_active' => 'boolean',
+        'popular' => 'boolean',
         'trial_days' => 'integer',
     ];
 

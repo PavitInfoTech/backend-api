@@ -7,6 +7,10 @@
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-gray-900">Subscription Plans Management</h1>
         <div class="space-x-2">
+            <form method="POST" action="{{ route('settings.update-subscription-plans-schema') }}" style="display: inline;">
+                @csrf
+                <button type="submit" onclick="return confirm('This will update your database schema to support the new pricing structure. Existing plans will be migrated automatically. Continue?')" class="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition duration-200 text-sm font-medium">Update Schema</button>
+            </form>
             <button type="button" onclick="document.getElementById('bulkImportModal').classList.remove('hidden')" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200 text-sm font-medium">Bulk Import</button>
             <button type="button" onclick="document.getElementById('addPlanModal').classList.remove('hidden')" class="bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition duration-200 text-sm font-medium">Add Plan</button>
         </div>
@@ -17,9 +21,9 @@
             <thead class="bg-gray-50 border-b border-gray-200">
                 <tr>
                     <th class="px-4 py-3 text-left font-medium text-gray-700">Name</th>
-                    <th class="px-4 py-3 text-left font-medium text-gray-700">Price</th>
-                    <th class="px-4 py-3 text-left font-medium text-gray-700">Interval</th>
-                    <th class="px-4 py-3 text-left font-medium text-gray-700">Trial Days</th>
+                    <th class="px-4 py-3 text-left font-medium text-gray-700">Monthly Price</th>
+                    <th class="px-4 py-3 text-left font-medium text-gray-700">Yearly Price</th>
+                    <th class="px-4 py-3 text-left font-medium text-gray-700">Popular</th>
                     <th class="px-4 py-3 text-left font-medium text-gray-700">Status</th>
                     <th class="px-4 py-3 text-left font-medium text-gray-700">Created</th>
                     <th class="px-4 py-3 text-right font-medium text-gray-700">Actions</th>
@@ -35,13 +39,16 @@
                             </div>
                         </td>
                         <td class="px-4 py-3 font-medium text-gray-900">
-                            {{ $plan->currency }} {{ number_format($plan->price, 2) }}
+                            {{ $plan->monthly_price !== null ? ($plan->currency . ' ' . number_format($plan->monthly_price, 2)) : '-' }}
                         </td>
-                        <td class="px-4 py-3 text-gray-600">
-                            {{ ucfirst($plan->interval) }}
+                        <td class="px-4 py-3 font-medium text-gray-900">
+                            {{ $plan->yearly_price !== null ? ($plan->currency . ' ' . number_format($plan->yearly_price, 2)) : '-' }}
                         </td>
-                        <td class="px-4 py-3 text-gray-600">
-                            {{ $plan->trial_days ?: 'None' }}
+                        <td class="px-4 py-3">
+                            <span class="inline-flex px-2 py-1 rounded-full text-xs font-semibold
+                                {{ $plan->popular ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800' }}">
+                                {{ $plan->popular ? 'Yes' : 'No' }}
+                            </span>
                         </td>
                         <td class="px-4 py-3">
                             <span class="inline-flex px-2 py-1 rounded-full text-xs font-semibold
@@ -53,7 +60,7 @@
                             {{ $plan->created_at->format('M d, Y') }}
                         </td>
                         <td class="px-4 py-3 text-right">
-                            <button type="button" onclick="editPlan({{ $plan->id }}, '{{ addslashes($plan->name) }}', '{{ $plan->slug }}', '{{ addslashes($plan->description) }}', {{ $plan->price }}, '{{ $plan->currency }}', '{{ $plan->interval }}', {{ $plan->trial_days }}, {{ $plan->is_active ? 'true' : 'false' }}, {{ json_encode($plan->features) }})" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit</button>
+                            <button type="button" onclick="editPlan({{ $plan->id }}, '{{ addslashes($plan->name) }}', '{{ $plan->slug }}', '{{ addslashes($plan->description) }}', {{ $plan->monthly_price ?? 'null' }}, {{ $plan->yearly_price ?? 'null' }}, '{{ $plan->currency }}', {{ $plan->trial_days }}, {{ $plan->is_active ? 'true' : 'false' }}, {{ $plan->popular ? 'true' : 'false' }}, {{ json_encode($plan->features) }})" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit</button>
                             <form action="{{ route('settings.delete-subscription-plan', $plan->id) }}" method="POST" class="inline">
                                 @csrf
                                 @method('DELETE')
@@ -97,30 +104,24 @@
 
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label for="price" class="block text-sm font-medium text-gray-700 mb-2">Price</label>
-                    <input type="number" id="price" name="price" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" required>
+                    <label for="monthly_price" class="block text-sm font-medium text-gray-700 mb-2">Monthly Price</label>
+                    <input type="number" id="monthly_price" name="monthly_price" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" placeholder="Optional">
                 </div>
 
                 <div>
-                    <label for="currency" class="block text-sm font-medium text-gray-700 mb-2">Currency</label>
-                    <input type="text" id="currency" name="currency" value="USD" maxlength="3" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" required>
+                    <label for="yearly_price" class="block text-sm font-medium text-gray-700 mb-2">Yearly Price</label>
+                    <input type="number" id="yearly_price" name="yearly_price" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" placeholder="Optional">
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label for="interval" class="block text-sm font-medium text-gray-700 mb-2">Billing Interval</label>
-                    <select id="interval" name="interval" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" required>
-                        <option value="month">Monthly</option>
-                        <option value="year">Yearly</option>
-                        <option value="once">One-time</option>
-                    </select>
-                </div>
+            <div>
+                <label for="currency" class="block text-sm font-medium text-gray-700 mb-2">Currency</label>
+                <input type="text" id="currency" name="currency" value="USD" maxlength="3" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" required>
+            </div>
 
-                <div>
-                    <label for="trial_days" class="block text-sm font-medium text-gray-700 mb-2">Trial Days</label>
-                    <input type="number" id="trial_days" name="trial_days" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500">
-                </div>
+            <div>
+                <label for="trial_days" class="block text-sm font-medium text-gray-700 mb-2">Trial Days</label>
+                <input type="number" id="trial_days" name="trial_days" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500">
             </div>
 
             <div>
@@ -128,10 +129,17 @@
                 <textarea id="features" name="features" rows="4" placeholder="Feature 1&#10;Feature 2&#10;Feature 3" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"></textarea>
             </div>
 
-            <div class="flex items-center">
-                <input type="hidden" name="is_active" value="0">
-                <input type="checkbox" id="is_active" name="is_active" value="1" checked class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
-                <label for="is_active" class="ml-2 block text-sm text-gray-900">Active</label>
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center">
+                    <input type="hidden" name="is_active" value="0">
+                    <input type="checkbox" id="is_active" name="is_active" value="1" checked class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
+                    <label for="is_active" class="ml-2 block text-sm text-gray-900">Active</label>
+                </div>
+                <div class="flex items-center">
+                    <input type="hidden" name="popular" value="0">
+                    <input type="checkbox" id="popular" name="popular" value="1" class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
+                    <label for="popular" class="ml-2 block text-sm text-gray-900">Popular</label>
+                </div>
             </div>
 
             <div class="flex space-x-3 pt-4">
@@ -169,30 +177,24 @@
 
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label for="edit_price" class="block text-sm font-medium text-gray-700 mb-2">Price</label>
-                    <input type="number" id="edit_price" name="price" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" required>
+                    <label for="edit_monthly_price" class="block text-sm font-medium text-gray-700 mb-2">Monthly Price</label>
+                    <input type="number" id="edit_monthly_price" name="monthly_price" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" placeholder="Optional">
                 </div>
 
                 <div>
-                    <label for="edit_currency" class="block text-sm font-medium text-gray-700 mb-2">Currency</label>
-                    <input type="text" id="edit_currency" name="currency" maxlength="3" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" required>
+                    <label for="edit_yearly_price" class="block text-sm font-medium text-gray-700 mb-2">Yearly Price</label>
+                    <input type="number" id="edit_yearly_price" name="yearly_price" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" placeholder="Optional">
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label for="edit_interval" class="block text-sm font-medium text-gray-700 mb-2">Billing Interval</label>
-                    <select id="edit_interval" name="interval" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" required>
-                        <option value="month">Monthly</option>
-                        <option value="year">Yearly</option>
-                        <option value="once">One-time</option>
-                    </select>
-                </div>
+            <div>
+                <label for="edit_currency" class="block text-sm font-medium text-gray-700 mb-2">Currency</label>
+                <input type="text" id="edit_currency" name="currency" maxlength="3" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" required>
+            </div>
 
-                <div>
-                    <label for="edit_trial_days" class="block text-sm font-medium text-gray-700 mb-2">Trial Days</label>
-                    <input type="number" id="edit_trial_days" name="trial_days" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500">
-                </div>
+            <div>
+                <label for="edit_trial_days" class="block text-sm font-medium text-gray-700 mb-2">Trial Days</label>
+                <input type="number" id="edit_trial_days" name="trial_days" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500">
             </div>
 
             <div>
@@ -200,10 +202,17 @@
                 <textarea id="edit_features" name="features" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"></textarea>
             </div>
 
-            <div class="flex items-center">
-                <input type="hidden" name="is_active" value="0">
-                <input type="checkbox" id="edit_is_active" name="is_active" value="1" class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
-                <label for="edit_is_active" class="ml-2 block text-sm text-gray-900">Active</label>
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center">
+                    <input type="hidden" name="is_active" value="0">
+                    <input type="checkbox" id="edit_is_active" name="is_active" value="1" class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
+                    <label for="edit_is_active" class="ml-2 block text-sm text-gray-900">Active</label>
+                </div>
+                <div class="flex items-center">
+                    <input type="hidden" name="popular" value="0">
+                    <input type="checkbox" id="edit_popular" name="popular" value="1" class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
+                    <label for="edit_popular" class="ml-2 block text-sm text-gray-900">Popular</label>
+                </div>
             </div>
 
             <div class="flex space-x-3 pt-4">
@@ -215,25 +224,16 @@
 </div>
 
 <script>
-    function editPlan(id, name, slug, description, price, currency, interval, trialDays, isActive, features) {
+    function editPlan(id, name, slug, description, monthlyPrice, yearlyPrice, currency, trialDays, isActive, popular, features) {
         document.getElementById('edit_name').value = name;
         document.getElementById('edit_slug').value = slug;
         document.getElementById('edit_description').value = description || '';
-        document.getElementById('edit_price').value = price;
+        document.getElementById('edit_monthly_price').value = monthlyPrice || '';
+        document.getElementById('edit_yearly_price').value = yearlyPrice || '';
         document.getElementById('edit_currency').value = currency;
-        
-        // Map database interval values to form values
-        const intervalMap = {
-            'monthly': 'month',
-            'yearly': 'year',
-            'one-time': 'once',
-            'month': 'month',
-            'year': 'year'
-        };
-        document.getElementById('edit_interval').value = intervalMap[interval] || interval;
-        
         document.getElementById('edit_trial_days').value = trialDays || '';
         document.getElementById('edit_is_active').checked = isActive;
+        document.getElementById('edit_popular').checked = popular;
 
         // Convert features array to newline-separated string
         let featuresText = '';
@@ -281,28 +281,29 @@
     <div class="bg-white rounded-lg shadow-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
         <h2 class="text-xl font-bold text-gray-900 mb-4">Bulk Import Plans</h2>
 
-        <p class="text-gray-600 text-sm mb-4">Paste a JSON array of subscription plans. Required fields: <code class="bg-gray-100 px-2 py-1 rounded">slug</code>, <code class="bg-gray-100 px-2 py-1 rounded">name</code>, <code class="bg-gray-100 px-2 py-1 rounded">price</code></p>
+        <p class="text-gray-600 text-sm mb-4">Paste a JSON array of subscription plans. Required fields: <code class="bg-gray-100 px-2 py-1 rounded">name</code>, <code class="bg-gray-100 px-2 py-1 rounded">slug</code></p>
 
         <form action="{{ route('settings.bulk-import-subscription-plans') }}" method="POST" class="space-y-4">
             @csrf
 
             <div>
                 <label for="json_data" class="block text-sm font-medium text-gray-700 mb-2">JSON Data</label>
-                <textarea id="json_data" name="json_data" rows="12" placeholder='[&#10;  {&#10;    "slug": "basic",&#10;    "name": "Basic Plan",&#10;    "price": 0,&#10;    "description": "Free plan",&#10;    "features": ["Feature 1", "Feature 2"],&#10;    "currency": "USD",&#10;    "interval": "month"&#10;  }&#10;]' class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono text-xs"></textarea>
-                <p class="text-gray-500 text-xs mt-1">Optional fields: description, features (array), currency (default USD), interval (default month), trial_days, is_active, popular</p>
-                <p class="text-gray-500 text-xs mt-1"><strong>Interval values:</strong> "month" → Monthly, "year" → Yearly, "once" → One-time</p>
+                <textarea id="json_data" name="json_data" rows="12" placeholder='[&#10;  {&#10;    "name": "Starter",&#10;    "slug": "starter",&#10;    "monthlyPrice": 49,&#10;    "yearlyPrice": 39,&#10;    "description": "For small teams",&#10;    "features": ["Feature 1", "Feature 2"],&#10;    "popular": false&#10;  }&#10;]' class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono text-xs"></textarea>
+                <p class="text-gray-500 text-xs mt-1">Optional fields: monthlyPrice, yearlyPrice, price (legacy), description, features (array), currency (default USD), interval (default monthly), trial_days, is_active, popular</p>
+                <p class="text-gray-500 text-xs mt-1"><strong>Interval values:</strong> "month" or "monthly" → Monthly, "year" or "yearly" → Yearly, "once" or "one-time" → One-time</p>
             </div>
 
             <div class="bg-blue-50 border border-blue-200 p-3 rounded-md text-sm text-blue-800">
-                <strong>Example:</strong>
+                <strong>New Structure Example:</strong>
                 <pre class="text-xs mt-2 overflow-auto">{
-  "slug": "pro",
-  "name": "Studio",
-  "price": 29.99,
-  "description": "Professional plan",
-  "features": ["Unlimited", "Priority Support", "Studio Quality"],
+  "name": "Professional",
+  "slug": "professional",
+  "monthlyPrice": 149,
+  "yearlyPrice": 119,
+  "description": "For growing businesses",
+  "features": ["Unlimited sources", "1M records/month", "Priority support"],
+  "popular": true,
   "currency": "USD",
-  "interval": "month",
   "is_active": true
 }</pre>
             </div>

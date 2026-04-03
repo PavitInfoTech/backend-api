@@ -680,6 +680,7 @@ class SettingsController extends Controller
 
     /**
      * Bulk import subscription plans from JSON
+     * Supports both new (monthlyPrice, yearlyPrice) and legacy (price, interval) structures.
      */
     public function bulkImportSubscriptionPlans(Request $request)
     {
@@ -692,8 +693,14 @@ class SettingsController extends Controller
         }
 
         try {
+            $jsonInput = $request->input('json_data');
+            
+            // Convert JavaScript object notation (unquoted keys) to valid JSON
+            // This regex adds quotes around unquoted property names
+            $jsonInput = preg_replace('/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/', '$1"$2":', $jsonInput);
+            
             // Parse JSON data
-            $data = json_decode($request->input('json_data'), true);
+            $data = json_decode($jsonInput, true);
             
             if (!is_array($data)) {
                 return back()->with('error', 'JSON must contain an array of plans.');
@@ -717,10 +724,9 @@ class SettingsController extends Controller
                     // Extract required fields
                     $slug = $item['slug'] ?? null;
                     $name = $item['name'] ?? null;
-                    $price = $item['price'] ?? null;
 
-                    if (!$slug || !$name || $price === null) {
-                        $errors[] = "Plan #" . ($index + 1) . ": Missing required fields (slug, name, price)";
+                    if (!$slug || !$name) {
+                        $errors[] = "Plan #" . ($index + 1) . ": Missing required fields (slug, name)";
                         continue;
                     }
 
@@ -737,7 +743,7 @@ class SettingsController extends Controller
                     }
 
                     // Map interval values to database enum values
-                    $rawInterval = $item['interval'] ?? 'month';
+                    $rawInterval = $item['interval'] ?? 'monthly';
                     $intervalMap = [
                         'month' => 'monthly',
                         'm' => 'monthly',
@@ -751,17 +757,46 @@ class SettingsController extends Controller
                     ];
                     $interval = $intervalMap[strtolower($rawInterval)] ?? 'monthly';
 
+                    // Handle new pricing structure (monthlyPrice, yearlyPrice)
+                    $monthlyPrice = $item['monthlyPrice'] ?? $item['monthly_price'] ?? null;
+                    $yearlyPrice = $item['yearlyPrice'] ?? $item['yearly_price'] ?? null;
+                    
+                    // Legacy price field - use if provided
+                    $legacyPrice = $item['price'] ?? null;
+                    
+                    // Determine final prices
+                    $finalPrice = $legacyPrice;
+                    $finalMonthlyPrice = $monthlyPrice;
+                    $finalYearlyPrice = $yearlyPrice;
+                    
+                    // If only legacy price is provided, use it as appropriate price
+                    if ($finalPrice !== null && $finalMonthlyPrice === null && $finalYearlyPrice === null) {
+                        if ($interval === 'monthly' || $interval === 'one-time') {
+                            $finalMonthlyPrice = $finalPrice;
+                        } else {
+                            $finalYearlyPrice = $finalPrice;
+                        }
+                    }
+                    
+                    // Fallback: set price if not set
+                    if ($finalPrice === null) {
+                        $finalPrice = $finalMonthlyPrice ?? $finalYearlyPrice ?? 0;
+                    }
+
                     // Create the plan
                     SubscriptionPlan::create([
                         'name' => $name,
                         'slug' => $slug,
-                        'description' => $item['description'] ?? null,
-                        'price' => $price,
+                        'description' => $item['description'] ?? $item['desc'] ?? null,
+                        'price' => $finalPrice,
+                        'monthly_price' => $finalMonthlyPrice,
+                        'yearly_price' => $finalYearlyPrice,
                         'currency' => $item['currency'] ?? 'USD',
                         'interval' => $interval,
                         'trial_days' => (int)($item['trial_days'] ?? 0),
                         'features' => $features,
-                        'is_active' => $item['is_active'] ?? ($item['popular'] ?? true), // Use popular flag if is_active not provided
+                        'is_active' => $item['is_active'] ?? true,
+                        'popular' => $item['popular'] ?? false,
                     ]);
 
                     $imported++;
@@ -785,6 +820,33 @@ class SettingsController extends Controller
             return redirect()->route('settings.subscription-plans');
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to parse JSON: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Update subscription plans schema by running pending migrations
+     * This allows existing customers to update their databases with the new pricing structure
+     */
+    public function updateSubscriptionPlansSchema(Request $request)
+    {
+        try {
+            // Run the pending migrations
+            \Illuminate\Support\Facades\Artisan::call('migrate', [
+                '--path' => 'database/migrations/2025_12_03_000001_update_subscription_plans_new_pricing.php',
+                '--force' => true,
+            ]);
+
+            // Run the migration to populate new pricing columns
+            \Illuminate\Support\Facades\Artisan::call('migrate', [
+                '--path' => 'database/migrations/2025_12_03_000002_populate_new_pricing_columns.php',
+                '--force' => true,
+            ]);
+
+            session()->flash('success', 'Database schema updated successfully! Subscription plans now support separate monthly and yearly pricing.');
+            return redirect()->route('settings.subscription-plans');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Schema update error', ['exception' => $e]);
+            return back()->with('error', 'Failed to update schema: ' . $e->getMessage());
         }
     }
 }

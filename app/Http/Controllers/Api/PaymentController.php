@@ -448,21 +448,54 @@ class PaymentController extends ApiController
     /**
      * POST /api/subscription-plans
      * Create a new subscription plan (authenticated users).
+     * Supports both legacy (price, interval) and new (monthlyPrice, yearlyPrice) structures.
      */
     public function createPlan(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'slug' => 'required|string|max:255|unique:subscription_plans,slug',
-            'description' => 'required|string|max:1000',
-            'price' => 'required|numeric|min:0',
-            'currency' => 'required|string|size:3',
-            'interval' => 'required|in:monthly,yearly',
+            'description' => 'sometimes|string|max:1000',
+            'desc' => 'sometimes|string|max:1000',
+            'price' => 'sometimes|numeric|min:0',
+            'monthly_price' => 'sometimes|nullable|numeric|min:0',
+            'yearly_price' => 'sometimes|nullable|numeric|min:0',
+            'currency' => 'sometimes|string|size:3',
+            'interval' => 'sometimes|in:monthly,yearly,one-time',
             'trial_days' => 'sometimes|integer|min:0|max:365',
             'features' => 'sometimes|array',
             'features.*' => 'string|max:255',
             'is_active' => 'sometimes|boolean',
+            'popular' => 'sometimes|boolean',
         ]);
+
+        // Use desc if description not provided
+        if (empty($validated['description']) && !empty($validated['desc'])) {
+            $validated['description'] = $validated['desc'];
+            unset($validated['desc']);
+        } elseif (empty($validated['description'])) {
+            $validated['description'] = null;
+        }
+
+        // Set defaults
+        $validated['currency'] = $validated['currency'] ?? 'USD';
+        $validated['interval'] = $validated['interval'] ?? 'monthly';
+        $validated['is_active'] = $validated['is_active'] ?? true;
+        $validated['popular'] = $validated['popular'] ?? false;
+
+        // If legacy price provided but not new prices, use price for appropriate interval
+        if (!empty($validated['price']) && empty($validated['monthly_price']) && empty($validated['yearly_price'])) {
+            if ($validated['interval'] === 'monthly' || $validated['interval'] === 'one-time') {
+                $validated['monthly_price'] = $validated['price'];
+            } else {
+                $validated['yearly_price'] = $validated['price'];
+            }
+        }
+
+        // Fallback price for backwards compatibility
+        if (empty($validated['price'])) {
+            $validated['price'] = $validated['monthly_price'] ?? $validated['yearly_price'] ?? 0;
+        }
 
         $plan = SubscriptionPlan::create($validated);
 
@@ -472,6 +505,7 @@ class PaymentController extends ApiController
     /**
      * PUT /api/subscription-plans/{id}
      * Update an existing subscription plan (authenticated users).
+     * Supports both legacy (price, interval) and new (monthlyPrice, yearlyPrice) structures.
      */
     public function updatePlan(Request $request, int $id): JsonResponse
     {
@@ -485,14 +519,41 @@ class PaymentController extends ApiController
             'name' => 'sometimes|string|max:255',
             'slug' => 'sometimes|string|max:255|unique:subscription_plans,slug,' . $id,
             'description' => 'sometimes|string|max:1000',
+            'desc' => 'sometimes|string|max:1000',
             'price' => 'sometimes|numeric|min:0',
+            'monthly_price' => 'sometimes|nullable|numeric|min:0',
+            'yearly_price' => 'sometimes|nullable|numeric|min:0',
             'currency' => 'sometimes|string|size:3',
-            'interval' => 'sometimes|in:monthly,yearly',
+            'interval' => 'sometimes|in:monthly,yearly,one-time',
             'trial_days' => 'sometimes|integer|min:0|max:365',
             'features' => 'sometimes|array',
             'features.*' => 'string|max:255',
             'is_active' => 'sometimes|boolean',
+            'popular' => 'sometimes|boolean',
         ]);
+
+        // Use desc if description not provided
+        if (!empty($validated['desc'])) {
+            $validated['description'] = $validated['desc'];
+            unset($validated['desc']);
+        }
+
+        // If legacy price provided and no new prices, update new prices
+        if (!empty($validated['price']) && empty($validated['monthly_price']) && empty($validated['yearly_price'])) {
+            $interval = $validated['interval'] ?? $plan->interval;
+            if ($interval === 'monthly' || $interval === 'one-time') {
+                $validated['monthly_price'] = $validated['price'];
+            } else {
+                $validated['yearly_price'] = $validated['price'];
+            }
+        }
+
+        // Update price field for backwards compatibility
+        if (!empty($validated['price'])) {
+            // Price is already set
+        } elseif (!empty($validated['monthly_price']) || !empty($validated['yearly_price'])) {
+            $validated['price'] = $validated['monthly_price'] ?? $validated['yearly_price'] ?? $plan->price;
+        }
 
         $plan->update($validated);
 
