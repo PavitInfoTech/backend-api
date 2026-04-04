@@ -30,10 +30,12 @@ class AuthController extends ApiController
             'password_hash_confirmation' => 'required|string|same:password_hash',
         ];
 
-        if (config('services.turnstile.enabled')) {
-            $rules['turnstile_token'] = ['required', new \App\Rules\Turnstile('register')];
+        if (config('services.turnstile.enabled') || config('services.recaptcha.enabled')) {
+            $rules['turnstile_token'] = ['sometimes', 'string', new \App\Rules\CaptchaRequired('register')];
+            $rules['recaptcha_token'] = ['sometimes', 'string'];
         } else {
-            $rules['turnstile_token'] = ['sometimes', new \App\Rules\Turnstile('register')];
+            $rules['turnstile_token'] = ['sometimes', 'string'];
+            $rules['recaptcha_token'] = ['sometimes', 'string'];
         }
 
         $v = Validator::make($request->all(), $rules);
@@ -316,10 +318,12 @@ class AuthController extends ApiController
     public function sendPasswordReset(Request $request)
     {
         $rules = ['email' => 'required|email'];
-        if (config('services.turnstile.enabled')) {
-            $rules['turnstile_token'] = ['required', new Turnstile('password_reset')];
+        if (config('services.turnstile.enabled') || config('services.recaptcha.enabled')) {
+            $rules['turnstile_token'] = ['sometimes', 'string', new \App\Rules\CaptchaRequired('password_reset')];
+            $rules['recaptcha_token'] = ['sometimes', 'string'];
         } else {
-            $rules['turnstile_token'] = ['sometimes', new Turnstile('password_reset')];
+            $rules['turnstile_token'] = ['sometimes', 'string'];
+            $rules['recaptcha_token'] = ['sometimes', 'string'];
         }
 
         $data = $request->validate($rules);

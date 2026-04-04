@@ -25,10 +25,12 @@ class MailController extends ApiController
             'message' => 'required|string',
         ];
 
-        if (config('services.turnstile.enabled')) {
-            $rules['turnstile_token'] = ['required', new Turnstile('contact')];
+        if (config('services.turnstile.enabled') || config('services.recaptcha.enabled')) {
+            $rules['turnstile_token'] = ['sometimes', 'string', new \App\Rules\CaptchaRequired('contact')];
+            $rules['recaptcha_token'] = ['sometimes', 'string'];
         } else {
-            $rules['turnstile_token'] = ['sometimes', new Turnstile('contact')];
+            $rules['turnstile_token'] = ['sometimes', 'string'];
+            $rules['recaptcha_token'] = ['sometimes', 'string'];
         }
 
         $data = $request->validate($rules);
@@ -66,10 +68,12 @@ class MailController extends ApiController
             'name' => 'sometimes|string|max:255',
         ];
 
-        if (config('services.turnstile.enabled')) {
-            $rules['turnstile_token'] = ['required', new Turnstile('newsletter')];
+        if (config('services.turnstile.enabled') || config('services.recaptcha.enabled')) {
+            $rules['turnstile_token'] = ['sometimes', 'string', new \App\Rules\CaptchaRequired('newsletter')];
+            $rules['recaptcha_token'] = ['sometimes', 'string'];
         } else {
-            $rules['turnstile_token'] = ['sometimes', new Turnstile('newsletter')];
+            $rules['turnstile_token'] = ['sometimes', 'string'];
+            $rules['recaptcha_token'] = ['sometimes', 'string'];
         }
 
         $data = $request->validate($rules);

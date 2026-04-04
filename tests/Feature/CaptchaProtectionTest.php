@@ -20,6 +20,7 @@ class CaptchaProtectionTest extends TestCase
         ]);
 
         $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['turnstile_token']);
     }
 
     public function test_contact_passes_with_valid_captcha()
@@ -34,6 +35,24 @@ class CaptchaProtectionTest extends TestCase
             'email' => 'bob@example.com',
             'message' => 'Hi',
             'turnstile_token' => 'valid'
+        ]);
+
+        $response->assertStatus(200);
+        Mail::assertSent(\App\Mail\ContactMail::class);
+    }
+
+    public function test_contact_passes_with_valid_recaptcha()
+    {
+        config(['services.recaptcha.enabled' => true, 'services.recaptcha.secret' => 'test-secret', 'mail.from.address' => 'admin@example.test']);
+        Http::fake(['https://www.google.com/recaptcha/api/siteverify' => Http::response(['success' => true], 200)]);
+
+        Mail::fake();
+
+        $response = $this->postJson('/api/mail/contact', [
+            'name' => 'Bob',
+            'email' => 'bob@example.com',
+            'message' => 'Hi',
+            'recaptcha_token' => 'valid'
         ]);
 
         $response->assertStatus(200);

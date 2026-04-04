@@ -34,14 +34,17 @@
   "email": "john@example.com",
   "password_hash": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
   "password_hash_confirmation": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
-  "turnstile_token": "optional_if_captcha_enabled"
+  "turnstile_token": "optional_if_captcha_enabled",
+  "recaptcha_token": "optional_if_captcha_enabled"
 }
 ```
 
 **Notes**:
 - `password_hash` must be SHA-256 hash (64 hex characters) - hash on frontend before sending
 - `password_hash_confirmation` must match `password_hash` exactly
-- `turnstile_token` is required if Turnstile CAPTCHA is enabled in settings
+- If CAPTCHA is enabled (either Turnstile or reCAPTCHA), provide at least one of `turnstile_token` or `recaptcha_token`
+- `turnstile_token` must be generated with action "register" when calling Turnstile's execute() method
+- `recaptcha_token` is obtained from reCAPTCHA widget
 - Automatically sends email verification link to user
 - User must verify email before checking email_verified_at
 
@@ -220,9 +223,16 @@ Authorization: Bearer <token>
 **Request Body**:
 ```json
 {
-  "email": "john@example.com"
+  "email": "john@example.com",
+  "turnstile_token": "optional_if_captcha_enabled",
+  "recaptcha_token": "optional_if_captcha_enabled"
 }
 ```
+
+**Notes**:
+- If CAPTCHA is enabled (either Turnstile or reCAPTCHA), provide at least one of `turnstile_token` or `recaptcha_token`
+- `turnstile_token` must be generated with action "password_reset" when calling Turnstile's execute() method
+- `recaptcha_token` is obtained from reCAPTCHA widget
 
 **Response** (200 OK):
 ```json
@@ -1399,9 +1409,15 @@ Location: /settings/subscription-plans
   "name": "John Doe",
   "email": "john@example.com",
   "message": "I have a question about your service",
-  "turnstile_token": "optional_if_enabled"
+  "turnstile_token": "optional_if_captcha_enabled",
+  "recaptcha_token": "optional_if_captcha_enabled"
 }
 ```
+
+**Notes**:
+- If CAPTCHA is enabled (either Turnstile or reCAPTCHA), provide at least one of `turnstile_token` or `recaptcha_token`
+- `turnstile_token` must be generated with action "contact" when calling Turnstile's execute() method
+- `recaptcha_token` is obtained from reCAPTCHA widget
 
 **Response** (200 OK):
 ```json
@@ -1435,9 +1451,15 @@ Location: /settings/subscription-plans
 {
   "email": "subscriber@example.com",
   "name": "Jane Smith",
-  "turnstile_token": "optional_if_enabled"
+  "turnstile_token": "optional_if_captcha_enabled",
+  "recaptcha_token": "optional_if_captcha_enabled"
 }
 ```
+
+**Notes**:
+- If CAPTCHA is enabled (either Turnstile or reCAPTCHA), provide at least one of `turnstile_token` or `recaptcha_token`
+- `turnstile_token` must be generated with action "newsletter" when calling Turnstile's execute() method
+- `recaptcha_token` is obtained from reCAPTCHA widget
 
 **Response** (200 OK):
 ```json
@@ -1660,7 +1682,9 @@ Location: /settings/subscription-plans
 - Turnstile: Cloudflare CAPTCHA
 - reCAPTCHA: Google reCAPTCHA v2/v3
 - Provider auto-detects if not specified
+- For Turnstile, the `action` parameter must match the action used when generating the token (e.g., "register", "contact", "newsletter", "password_reset")
 - Score (reCAPTCHA only): 0.0-1.0 (higher = more human-like)
+- Either Turnstile or reCAPTCHA can be used, but at least one CAPTCHA system must be enabled in settings
 
 **Database Flow**:
 - Call external API (Turnstile/reCAPTCHA verification endpoint)
