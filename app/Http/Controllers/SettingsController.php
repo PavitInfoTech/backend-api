@@ -548,9 +548,9 @@ class SettingsController extends Controller
             'name' => 'required|string|max:255',
             'slug' => 'required|string|max:255|unique:subscription_plans,slug',
             'description' => 'nullable|string',
-            'price' => 'required|numeric|min:0',
+            'monthly_price' => 'nullable|numeric|min:0',
+            'yearly_price' => 'nullable|numeric|min:0',
             'currency' => 'required|string|size:3',
-            'interval' => 'required|in:month,year,once',
             'trial_days' => 'nullable|integer|min:0',
             'features' => 'nullable|string',
             'is_active' => 'required|boolean',
@@ -569,24 +569,13 @@ class SettingsController extends Controller
                 });
             }
 
-            // Map interval values to database enum
-            $intervalMap = [
-                'month' => 'monthly',
-                'year' => 'yearly',
-                'once' => 'one-time',
-                'monthly' => 'monthly',
-                'yearly' => 'yearly',
-                'one-time' => 'one-time',
-            ];
-            $interval = $intervalMap[$request->input('interval')] ?? 'monthly';
-
             SubscriptionPlan::create([
                 'name' => $request->input('name'),
                 'slug' => $request->input('slug'),
                 'description' => $request->input('description'),
-                'price' => $request->input('price'),
+                'monthly_price' => $request->input('monthly_price'),
+                'yearly_price' => $request->input('yearly_price'),
                 'currency' => strtoupper($request->input('currency')),
-                'interval' => $interval,
                 'trial_days' => (int)($request->input('trial_days') ?? 0),
                 'features' => $features,
                 'is_active' => (bool)$request->input('is_active', 0),
@@ -608,9 +597,9 @@ class SettingsController extends Controller
             'name' => 'required|string|max:255',
             'slug' => 'required|string|max:255|unique:subscription_plans,slug,' . $plan->id,
             'description' => 'nullable|string',
-            'price' => 'required|numeric|min:0',
+            'monthly_price' => 'nullable|numeric|min:0',
+            'yearly_price' => 'nullable|numeric|min:0',
             'currency' => 'required|string|size:3',
-            'interval' => 'required|in:month,year,once',
             'trial_days' => 'nullable|integer|min:0',
             'features' => 'nullable|string',
             'is_active' => 'required|boolean',
@@ -629,24 +618,13 @@ class SettingsController extends Controller
                 });
             }
 
-            // Map interval values to database enum
-            $intervalMap = [
-                'month' => 'monthly',
-                'year' => 'yearly',
-                'once' => 'one-time',
-                'monthly' => 'monthly',
-                'yearly' => 'yearly',
-                'one-time' => 'one-time',
-            ];
-            $interval = $intervalMap[$request->input('interval')] ?? 'monthly';
-
             $plan->update([
                 'name' => $request->input('name'),
                 'slug' => $request->input('slug'),
                 'description' => $request->input('description'),
-                'price' => $request->input('price'),
+                'monthly_price' => $request->input('monthly_price'),
+                'yearly_price' => $request->input('yearly_price'),
                 'currency' => strtoupper($request->input('currency')),
-                'interval' => $interval,
                 'trial_days' => (int)($request->input('trial_days') ?? 0),
                 'features' => $features,
                 'is_active' => (bool)$request->input('is_active', 0),
