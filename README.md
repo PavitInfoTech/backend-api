@@ -13,22 +13,21 @@
 
 Deployment:
 
--   If you plan to host your API at a subdomain like `api.example.com` and want endpoints available at the root path (e.g., `https://api.example.com/users`), set the `API_DOMAIN` environment variable to your API host. When `API_DOMAIN` is set, routes in `routes/api.php` are exposed at the root path for that domain (no `/api` prefix).
-    -   If you set `API_DOMAIN` for production but want to retain the `/api` prefix locally (e.g., you cannot add a host entry for `api.local`), set `API_PREFIX_FALLBACK=true` in your local `.env` to register both the domain and `/api` prefixed routes (safe for local development only).
--   If `API_DOMAIN` is not set, the repository uses the default `api` prefix (e.g., `https://example.com/api/users`) — this is useful for local development and automated testing.
+-   Every API endpoint uses the `/api` prefix in every environment, including when the API is hosted at a subdomain. For example: `https://api.example.com/api/users`.
+-   `API_DOMAIN` may still be used for deployment DNS or CORS configuration, but it does not change API route paths.
 
 Example (production `.env`):
 
 ```
-API_DOMAIN=api.example.com
+API_DOMAIN=api.example.com # optional deployment host; /api remains required
 FRONTEND_URL=https://app.example.com
 ```
 
-To test locally without a subdomain, keep `API_DOMAIN` blank and use the `/api` prefix as before.
+The same `/api` prefix is used locally and in production.
 
 Postman collection:
 
--   `docs/Postman-Backend-API.postman_collection.json` contains a set of example requests for all API endpoints, using environment variables (baseUrl, apiToken, testUserEmail, testUserPassword, userId, jobId, verificationToken). Import this into Postman and set `baseUrl` appropriately (e.g., `http://localhost:8000` or `https://api.example.com`).
+-   `docs/Postman-Backend-API.postman_collection.json` contains a set of example requests for all API endpoints, using environment variables (baseUrl, apiToken, testUserEmail, testUserPassword, userId, jobId, verificationToken). Import this into Postman and set `baseUrl` to the host only (e.g., `http://localhost:8000` or `https://api.example.com`); requests add `/api` themselves.
 -   -   `docs/Postman-Backend-API.postman_environment.json` is a sample Postman environment for quick import, which includes default values for `baseUrl` and test user variables.
 
 cPanel & shared hosting tips:

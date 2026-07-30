@@ -11,27 +11,10 @@ return Application::configure(basePath: dirname(__DIR__))
             $api = __DIR__ . '/../routes/api.php';
             $health = '/up';
 
-            // If API_DOMAIN is present, register API routes on that domain without the `api` prefix
-            // For local development or when `API_PREFIX_FALLBACK=true` is set, also register the
-            // /api prefix so developers can call routes via the /api prefix even when the app
-            // uses a subdomain in production (e.g., `api.example.com` -> `/auth/login`).
-            $apiDomain = env('API_DOMAIN');
-            $shouldFallbackToPrefix = app()->environment(['local', 'testing'])
-                || app()->runningUnitTests()
-                || (app()->runningInConsole() && app()->environment('testing'))
-                || filter_var(env('API_PREFIX_FALLBACK', false), FILTER_VALIDATE_BOOLEAN);
-
-            if (! empty($apiDomain)) {
-                \Illuminate\Support\Facades\Route::middleware('api')->domain($apiDomain)->group($api);
-
-                // Enable /api prefix fallback in local/testing/unit-test contexts or when explicitly requested.
-                if ($shouldFallbackToPrefix) {
-                    \Illuminate\Support\Facades\Route::middleware('api')->prefix('api')->group($api);
-                }
-            } else {
-                // Fallback to the default /api prefix for local/dev/testing.
-                \Illuminate\Support\Facades\Route::middleware('api')->prefix('api')->group($api);
-            }
+            // Every API endpoint has one stable public path: /api/...
+            // API_DOMAIN may still be used for deployment DNS or CORS, but it never
+            // changes the route prefix or exposes API routes at the domain root.
+            \Illuminate\Support\Facades\Route::middleware('api')->prefix('api')->group($api);
 
             // Register web routes as usual
             \Illuminate\Support\Facades\Route::middleware('web')->group($web);
@@ -74,8 +57,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         // Handle all API exceptions with consistent JSON format
         $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, $request) {
-            $apiDomain = env('API_DOMAIN');
-            $isApiRequest = $request->expectsJson() || $request->is('api/*') || ($apiDomain && $request->getHost() === $apiDomain) || $request->is('*');
+            $isApiRequest = $request->expectsJson() || $request->is('api/*');
             if ($isApiRequest) {
                 return response()->json([
                     'status' => 'error',
@@ -88,8 +70,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (\Illuminate\Validation\ValidationException $e, $request) {
-            $apiDomain = env('API_DOMAIN');
-            $isApiRequest = $request->expectsJson() || $request->is('api/*') || ($apiDomain && $request->getHost() === $apiDomain);
+            $isApiRequest = $request->expectsJson() || $request->is('api/*');
             if ($isApiRequest) {
                 return response()->json([
                     'status' => 'error',
@@ -102,8 +83,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (\Illuminate\Auth\Access\AuthorizationException $e, $request) {
-            $apiDomain = env('API_DOMAIN');
-            $isApiRequest = $request->expectsJson() || $request->is('api/*') || ($apiDomain && $request->getHost() === $apiDomain);
+            $isApiRequest = $request->expectsJson() || $request->is('api/*');
             if ($isApiRequest) {
                 return response()->json([
                     'status' => 'error',
@@ -116,8 +96,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (\Illuminate\Database\Eloquent\ModelNotFoundException $e, $request) {
-            $apiDomain = env('API_DOMAIN');
-            $isApiRequest = $request->expectsJson() || $request->is('api/*') || ($apiDomain && $request->getHost() === $apiDomain);
+            $isApiRequest = $request->expectsJson() || $request->is('api/*');
             if ($isApiRequest) {
                 return response()->json([
                     'status' => 'error',
@@ -130,8 +109,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) {
-            $apiDomain = env('API_DOMAIN');
-            $isApiRequest = $request->expectsJson() || $request->is('api/*') || ($apiDomain && $request->getHost() === $apiDomain);
+            $isApiRequest = $request->expectsJson() || $request->is('api/*');
             if ($isApiRequest) {
                 return response()->json([
                     'status' => 'error',
@@ -144,8 +122,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException $e, $request) {
-            $apiDomain = env('API_DOMAIN');
-            $isApiRequest = $request->expectsJson() || $request->is('api/*') || ($apiDomain && $request->getHost() === $apiDomain);
+            $isApiRequest = $request->expectsJson() || $request->is('api/*');
             if ($isApiRequest) {
                 return response()->json([
                     'status' => 'error',
@@ -158,8 +135,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, $request) {
-            $apiDomain = env('API_DOMAIN');
-            $isApiRequest = $request->expectsJson() || $request->is('api/*') || ($apiDomain && $request->getHost() === $apiDomain);
+            $isApiRequest = $request->expectsJson() || $request->is('api/*');
             if ($isApiRequest) {
                 return response()->json([
                     'status' => 'error',

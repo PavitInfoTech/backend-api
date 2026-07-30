@@ -16,23 +16,16 @@ The API currently exposes:
 
 ## Base URL and route prefix
 
-The route prefix depends on configuration:
-
-| Configuration | API URL form |
-|---|---|
-| `API_DOMAIN` empty | `https://your-host/api/...` |
-| `API_DOMAIN=api.example.com` | `https://api.example.com/...` with no `/api` prefix |
-| `API_DOMAIN` set and `API_PREFIX_FALLBACK=true` | Both the domain-root form and `/api/...` form are registered |
-| Local/testing environment with `API_DOMAIN` set | Both forms are registered automatically |
+Every API route is registered under `/api`, regardless of environment or domain configuration. There is no domain-root API alias.
 
 Examples:
 
 ```text
 Local/default:  http://localhost:8000/api/auth/login
-API subdomain:  https://api.example.com/auth/login
+API subdomain:  https://api.example.com/api/auth/login
 ```
 
-`API_DOMAIN` should be configured as the API host, for example `api.example.com`. `APP_URL` is used when the application generates URLs and `FRONTEND_URL` is used for browser redirects and reset links.
+`API_DOMAIN` may be configured as a deployment host or CORS origin, but it does not change the `/api` prefix. `APP_URL` is used when the application generates URLs and `FRONTEND_URL` is used for browser redirects and reset links.
 
 ## Middleware and authentication
 
@@ -47,7 +40,7 @@ Accept: application/json
 
 Sanctum stores only a hash of the token in the database. Tokens are created on registration, login, OAuth login, and password reset. The current implementation does not expire tokens automatically and does not invalidate previous tokens when a user logs in again.
 
-The public `POST /auth/logout` route is intentionally not behind `auth:sanctum`. With a valid bearer token it revokes the current token; it can also revoke the token represented by the `api_token` cookie. JSON requests receive JSON; browser-style requests are redirected to `FRONTEND_URL/auth/logout`.
+The public `POST /api/auth/logout` route is intentionally not behind `auth:sanctum`. With a valid bearer token it revokes the current token; it can also revoke the token represented by the `api_token` cookie. JSON requests receive JSON; browser-style requests are redirected to `FRONTEND_URL/auth/logout`.
 
 ## Response envelopes
 
@@ -101,53 +94,53 @@ The API exception handler also formats authentication, authorization, 404, 405, 
 
 | Method | Path | Auth | Handler | Throttle |
 |---|---|---|---|---|
-| GET | `/ping` | Public | health response | None |
-| POST | `/auth/register` | Public | `AuthController@register` | None |
-| POST | `/auth/login` | Public | `AuthController@login` | None |
-| POST | `/auth/logout` | Public/optional bearer | `AuthController@logout` | None |
-| POST | `/auth/password/forgot` | Public | `AuthController@sendPasswordReset` | None |
-| POST | `/auth/password/reset` | Public | `AuthController@resetPassword` | None |
-| POST | `/auth/password/change` | Sanctum | `AuthController@changePassword` | None |
-| POST | `/auth/verify/send` | Public/optional bearer | `AuthController@sendVerification` | None |
-| GET | `/auth/verify/{token}` | Public | `AuthController@verifyEmail` | None |
-| POST | `/auth/google/token` | Public | `AuthController@googleTokenLogin` | None |
-| POST | `/auth/github/token` | Public | `AuthController@githubTokenLogin` | None |
-| GET | `/auth/google/redirect` | Public browser flow | `AuthController@redirectToGoogle` | None |
-| GET | `/auth/google/callback` | Public browser flow | `AuthController@handleGoogleCallback` | None |
-| GET | `/auth/github/redirect` | Public browser flow | `AuthController@redirectToGithub` | None |
-| GET | `/auth/github/callback` | Public browser flow | `AuthController@handleGithubCallback` | None |
-| GET | `/auth/link/google/redirect` | Sanctum + session | `AuthController@linkToGoogle` | None |
-| GET | `/auth/link/google/callback` | Sanctum + session | `AuthController@handleLinkGoogleCallback` | None |
-| GET | `/auth/link/github/redirect` | Sanctum + session | `AuthController@linkToGithub` | None |
-| GET | `/auth/link/github/callback` | Sanctum + session | `AuthController@handleLinkGithubCallback` | None |
-| POST | `/auth/unlink` | Sanctum | `AuthController@unlinkProvider` | None |
-| GET | `/user` | Sanctum | `ProfileController@show` | None |
-| PUT | `/user` | Sanctum | `ProfileController@update` | None |
-| POST | `/user/avatar` | Sanctum | `ProfileController@uploadAvatar` | None |
-| DELETE | `/user` | Sanctum | `ProfileController@destroy` | None |
-| GET | `/users/{id}/public` | Public | `ProfileController@publicProfile` | None |
-| GET | `/subscription-plans` | Public | `PaymentController@listPlans` | None |
-| GET | `/subscription-plans/{slug}` | Public | `PaymentController@showPlan` | None |
-| POST | `/subscription-plans` | Public | `PaymentController@createPlan` | None |
-| PUT | `/subscription-plans/{id}` | Public | `PaymentController@updatePlan` | None |
-| DELETE | `/subscription-plans/{id}` | Public | `PaymentController@deletePlan` | None |
-| POST | `/subscriptions` | Sanctum | `PaymentController@subscribe` | None |
-| GET | `/payments` | Sanctum | `PaymentController@listPayments` | None |
-| GET | `/payments/last-plan` | Sanctum | `PaymentController@lastPlan` | None |
-| POST | `/payments/process` | Sanctum | `PaymentController@processPayment` | None |
-| POST | `/payments/revert-plan` | Sanctum | `PaymentController@revertPlan` | None |
-| GET | `/payments/{transactionId}` | Sanctum | `PaymentController@verifyPayment` | None |
-| POST | `/payments/refund/{transactionId}` | Sanctum | `PaymentController@refundPayment` | None |
-| POST | `/payments/webhook` | Public | `PaymentController@handleWebhook` | None |
-| POST | `/ai/generate` | Public/optional bearer | `AIController@generate` | `throttle:ai` |
-| GET | `/ai/jobs/{id}/status` | Public | `AIController@jobStatus` | None |
-| POST | `/mail/contact` | Public | `MailController@contact` | None |
-| POST | `/mail/newsletter` | Public | `MailController@newsletter` | None |
-| GET | `/mail/newsletter/verify/{token}` | Public | `MailController@verifyNewsletter` | None |
-| GET | `/mail/newsletter/unsubscribe/{token}` | Public | `MailController@unsubscribe` | None |
-| POST | `/mail/password-reset` | Public | `MailController@passwordReset` | None |
-| POST | `/maps/pin` | Public | `MapsController@createPin` | None |
-| POST | `/captcha/verify` | Public | `CaptchaController@verify` | None |
+| GET | `/api/ping` | Public | health response | None |
+| POST | `/api/auth/register` | Public | `AuthController@register` | None |
+| POST | `/api/auth/login` | Public | `AuthController@login` | None |
+| POST | `/api/auth/logout` | Public/optional bearer | `AuthController@logout` | None |
+| POST | `/api/auth/password/forgot` | Public | `AuthController@sendPasswordReset` | None |
+| POST | `/api/auth/password/reset` | Public | `AuthController@resetPassword` | None |
+| POST | `/api/auth/password/change` | Sanctum | `AuthController@changePassword` | None |
+| POST | `/api/auth/verify/send` | Public/optional bearer | `AuthController@sendVerification` | None |
+| GET | `/api/auth/verify/{token}` | Public | `AuthController@verifyEmail` | None |
+| POST | `/api/auth/google/token` | Public | `AuthController@googleTokenLogin` | None |
+| POST | `/api/auth/github/token` | Public | `AuthController@githubTokenLogin` | None |
+| GET | `/api/auth/google/redirect` | Public browser flow | `AuthController@redirectToGoogle` | None |
+| GET | `/api/auth/google/callback` | Public browser flow | `AuthController@handleGoogleCallback` | None |
+| GET | `/api/auth/github/redirect` | Public browser flow | `AuthController@redirectToGithub` | None |
+| GET | `/api/auth/github/callback` | Public browser flow | `AuthController@handleGithubCallback` | None |
+| GET | `/api/auth/link/google/redirect` | Sanctum + session | `AuthController@linkToGoogle` | None |
+| GET | `/api/auth/link/google/callback` | Sanctum + session | `AuthController@handleLinkGoogleCallback` | None |
+| GET | `/api/auth/link/github/redirect` | Sanctum + session | `AuthController@linkToGithub` | None |
+| GET | `/api/auth/link/github/callback` | Sanctum + session | `AuthController@handleLinkGithubCallback` | None |
+| POST | `/api/auth/unlink` | Sanctum | `AuthController@unlinkProvider` | None |
+| GET | `/api/user` | Sanctum | `ProfileController@show` | None |
+| PUT | `/api/user` | Sanctum | `ProfileController@update` | None |
+| POST | `/api/user/avatar` | Sanctum | `ProfileController@uploadAvatar` | None |
+| DELETE | `/api/user` | Sanctum | `ProfileController@destroy` | None |
+| GET | `/api/users/{id}/public` | Public | `ProfileController@publicProfile` | None |
+| GET | `/api/subscription-plans` | Public | `PaymentController@listPlans` | None |
+| GET | `/api/subscription-plans/{slug}` | Public | `PaymentController@showPlan` | None |
+| POST | `/api/subscription-plans` | Public | `PaymentController@createPlan` | None |
+| PUT | `/api/subscription-plans/{id}` | Public | `PaymentController@updatePlan` | None |
+| DELETE | `/api/subscription-plans/{id}` | Public | `PaymentController@deletePlan` | None |
+| POST | `/api/subscriptions` | Sanctum | `PaymentController@subscribe` | None |
+| GET | `/api/payments` | Sanctum | `PaymentController@listPayments` | None |
+| GET | `/api/payments/last-plan` | Sanctum | `PaymentController@lastPlan` | None |
+| POST | `/api/payments/process` | Sanctum | `PaymentController@processPayment` | None |
+| POST | `/api/payments/revert-plan` | Sanctum | `PaymentController@revertPlan` | None |
+| GET | `/api/payments/{transactionId}` | Sanctum | `PaymentController@verifyPayment` | None |
+| POST | `/api/payments/refund/{transactionId}` | Sanctum | `PaymentController@refundPayment` | None |
+| POST | `/api/payments/webhook` | Public | `PaymentController@handleWebhook` | None |
+| POST | `/api/ai/generate` | Public/optional bearer | `AIController@generate` | `throttle:ai` |
+| GET | `/api/ai/jobs/{id}/status` | Public | `AIController@jobStatus` | None |
+| POST | `/api/mail/contact` | Public | `MailController@contact` | None |
+| POST | `/api/mail/newsletter` | Public | `MailController@newsletter` | None |
+| GET | `/api/mail/newsletter/verify/{token}` | Public | `MailController@verifyNewsletter` | None |
+| GET | `/api/mail/newsletter/unsubscribe/{token}` | Public | `MailController@unsubscribe` | None |
+| POST | `/api/mail/password-reset` | Public | `MailController@passwordReset` | None |
+| POST | `/api/maps/pin` | Public | `MapsController@createPin` | None |
+| POST | `/api/captcha/verify` | Public | `CaptchaController@verify` | None |
 
 Unknown API paths return HTTP 404 with `status: "error"`, `message: "Route not found"`, `errors: null`, `code: 404`, and a timestamp.
 
@@ -156,7 +149,7 @@ Unknown API paths return HTTP 404 with `status: "error"`, `message: "Route not f
 ## Register
 
 ```http
-POST /auth/register
+POST /api/auth/register
 ```
 
 Request JSON:
@@ -191,7 +184,7 @@ Success: HTTP 201, message `Registered. Please check your email to verify your a
 ## Login
 
 ```http
-POST /auth/login
+POST /api/auth/login
 ```
 
 ```json
@@ -208,7 +201,7 @@ Invalid credentials return HTTP 401 with message `Invalid credentials`. Validati
 ## Logout
 
 ```http
-POST /auth/logout
+POST /api/auth/logout
 ```
 
 This route is public at the routing layer. For an authenticated bearer request, the current access token is deleted. If only an `api_token` cookie is present, the matching Sanctum token hash is also deleted. The cookie is forgotten in the response.
@@ -218,7 +211,7 @@ With `Accept: application/json` or a JSON request, success is HTTP 200 with mess
 ## Send verification email
 
 ```http
-POST /auth/verify/send
+POST /api/auth/verify/send
 ```
 
 If the request has a logged-in user, no body is required and the email is taken from that user. Otherwise, the request must contain:
@@ -232,7 +225,7 @@ The endpoint is public and is not throttled. Unknown emails return a generic HTT
 ## Verify email
 
 ```http
-GET /auth/verify/{token}
+GET /api/auth/verify/{token}
 ```
 
 The token is looked up in `email_verification_tokens`. Invalid tokens return HTTP 400, not 404. The implementation does not check the token age. A matching user is marked verified and the token is deleted.
@@ -242,7 +235,7 @@ If the request does not want JSON, the endpoint redirects to `FRONTEND_URL/auth/
 ## Request password reset
 
 ```http
-POST /auth/password/forgot
+POST /api/auth/password/forgot
 ```
 
 ```json
@@ -258,7 +251,7 @@ The endpoint is public and is not throttled. For an existing user, it writes a p
 ## Reset password
 
 ```http
-POST /auth/password/reset
+POST /api/auth/password/reset
 ```
 
 ```json
@@ -275,7 +268,7 @@ The token must match the row for the supplied email and must be no more than 120
 ## Change password
 
 ```http
-POST /auth/password/change
+POST /api/auth/password/change
 Authorization: Bearer <token>
 ```
 
@@ -294,7 +287,7 @@ The current password must match exactly. A wrong current password returns HTTP 4
 ### Google
 
 ```http
-POST /auth/google/token
+POST /api/auth/google/token
 ```
 
 Accepted request fields:
@@ -308,7 +301,7 @@ The `code` path exchanges the authorization code server-side and obtains the Goo
 ### GitHub
 
 ```http
-POST /auth/github/token
+POST /api/auth/github/token
 ```
 
 Accepted request fields:
@@ -324,10 +317,10 @@ Success is HTTP 200 with message `Authenticated via Github`, `data.user`, and `d
 For each provider, the following public routes use the `web` middleware for Socialite session state:
 
 ```text
-GET /auth/google/redirect
-GET /auth/google/callback
-GET /auth/github/redirect
-GET /auth/github/callback
+GET /api/auth/google/redirect
+GET /api/auth/google/callback
+GET /api/auth/github/redirect
+GET /api/auth/github/callback
 ```
 
 The redirect route returns a 302 redirect to the provider. The callback exchanges the provider response and creates or finds a local user. If the request explicitly prefers JSON, the callback returns the same `data.user` and `data.token` envelope as the token exchange. Otherwise it redirects to:
@@ -343,10 +336,10 @@ Provider errors return HTTP 400 JSON. The current implementation places the plai
 Linking requires both a Sanctum-authenticated route and the browser session middleware:
 
 ```text
-GET /auth/link/google/redirect
-GET /auth/link/google/callback
-GET /auth/link/github/redirect
-GET /auth/link/github/callback
+GET /api/auth/link/google/redirect
+GET /api/auth/link/google/callback
+GET /api/auth/link/github/redirect
+GET /api/auth/link/github/callback
 ```
 
 The redirect starts provider consent. The callback attaches `provider_name`, `provider_id`, and the provider avatar to the current user and returns HTTP 200 JSON with `data.user` and a provider-specific linked message. It does not issue a new API token.
@@ -354,7 +347,7 @@ The redirect starts provider consent. The callback attaches `provider_name`, `pr
 Unlinking:
 
 ```http
-POST /auth/unlink
+POST /api/auth/unlink
 Authorization: Bearer <token>
 ```
 
@@ -369,7 +362,7 @@ The provider field is required. If the provider is not the user's currently link
 ## Current profile
 
 ```http
-GET /user
+GET /api/user
 Authorization: Bearer <token>
 ```
 
@@ -378,7 +371,7 @@ Success is HTTP 200 with message `User profile` and `data` equal to the authenti
 ## Update profile
 
 ```http
-PUT /user
+PUT /api/user
 Authorization: Bearer <token>
 ```
 
@@ -399,7 +392,7 @@ All fields are optional:
 ## Upload avatar
 
 ```http
-POST /user/avatar
+POST /api/user/avatar
 Authorization: Bearer <token>
 Content-Type: multipart/form-data
 ```
@@ -429,7 +422,7 @@ The upload endpoint does not return the full user object. Missing or invalid fil
 ## Public profile
 
 ```http
-GET /users/{id}/public
+GET /api/users/{id}/public
 ```
 
 Success is HTTP 200 with message `Public profile` and exactly these fields in `data`: `id`, `username`, `first_name`, `last_name`, `avatar`, and `created_at`. Email, password, plan, provider data, and other private fields are not returned. A missing user returns HTTP 404 with `User not found`.
@@ -437,7 +430,7 @@ Success is HTTP 200 with message `Public profile` and exactly these fields in `d
 ## Delete account
 
 ```http
-DELETE /user
+DELETE /api/user
 Authorization: Bearer <token>
 ```
 
@@ -460,7 +453,7 @@ created_at, updated_at
 ## List plans
 
 ```http
-GET /subscription-plans
+GET /api/subscription-plans
 ```
 
 Returns only plans where `is_active=true`, ordered by legacy `price` ascending. Success is HTTP 200 with message `Subscription plans retrieved` and an array in `data`.
@@ -468,7 +461,7 @@ Returns only plans where `is_active=true`, ordered by legacy `price` ascending. 
 ## Get one plan
 
 ```http
-GET /subscription-plans/{slug}
+GET /api/subscription-plans/{slug}
 ```
 
 Looks up any plan by slug, including inactive plans. Success is HTTP 200 with the default success message `OK` and the plan in `data`. A missing plan returns HTTP 404 with `Subscription plan not found`.
@@ -476,7 +469,7 @@ Looks up any plan by slug, including inactive plans. Success is HTTP 200 with th
 ## Create plan
 
 ```http
-POST /subscription-plans
+POST /api/subscription-plans
 ```
 
 This route is public in the current implementation; no Sanctum or admin authorization is applied.
@@ -508,7 +501,7 @@ Success is HTTP 201 with message `Subscription plan created` and the created pla
 ## Update plan
 
 ```http
-PUT /subscription-plans/{id}
+PUT /api/subscription-plans/{id}
 ```
 
 This route is also public. The body is a partial update using the same fields as create; no field is required. A missing numeric ID returns HTTP 404 with `Subscription plan not found`. Success is HTTP 200 with message `Subscription plan updated` and the plan in `data`.
@@ -516,7 +509,7 @@ This route is also public. The body is a partial update using the same fields as
 ## Delete plan
 
 ```http
-DELETE /subscription-plans/{id}
+DELETE /api/subscription-plans/{id}
 ```
 
 This route is public. The controller attempts to block deletion by querying the `SubscriptionPlan::subscriptions()` relation for an active record. In the current model that relation is a generic `hasMany(Payment::class)` relation whose default foreign key is `subscription_plan_id`, but the payments schema has no `subscription_plan_id` column. With the current migrations, the query therefore fails before deletion and the route normally produces an unhandled database error/HTTP 500. A missing plan is handled first and returns HTTP 404 with `Subscription plan not found`.
@@ -524,7 +517,7 @@ This route is public. The controller attempts to block deletion by querying the 
 ## Subscribe to a plan
 
 ```http
-POST /subscriptions
+POST /api/subscriptions
 Authorization: Bearer <token>
 ```
 
@@ -566,7 +559,7 @@ Payment failures from the sandbox gateway return HTTP 400. Validation failures r
 ## Process one-time payment
 
 ```http
-POST /payments/process
+POST /api/payments/process
 Authorization: Bearer <token>
 ```
 
@@ -595,7 +588,7 @@ Success is HTTP 201 with message `Payment processed successfully` and the paymen
 ## List payment history
 
 ```http
-GET /payments
+GET /api/payments
 Authorization: Bearer <token>
 ```
 
@@ -604,7 +597,7 @@ The endpoint returns the authenticated user's payments, newest first, using Lara
 ## Get last purchased plan
 
 ```http
-GET /payments/last-plan
+GET /api/payments/last-plan
 Authorization: Bearer <token>
 ```
 
@@ -619,7 +612,7 @@ With a matching payment it returns `data.plan` as the plan model, or `{ "slug": 
 ## Verify payment
 
 ```http
-GET /payments/{transactionId}
+GET /api/payments/{transactionId}
 Authorization: Bearer <token>
 ```
 
@@ -638,7 +631,7 @@ The sandbox gateway treats transaction IDs beginning with `TXN_` as valid, but t
 ## Refund payment
 
 ```http
-POST /payments/refund/{transactionId}
+POST /api/payments/refund/{transactionId}
 Authorization: Bearer <token>
 ```
 
@@ -655,7 +648,7 @@ Success is HTTP 200 with message `Refund processed successfully` and the updated
 ## Revert or change current plan
 
 ```http
-POST /payments/revert-plan
+POST /api/payments/revert-plan
 Authorization: Bearer <token>
 ```
 
@@ -671,7 +664,7 @@ Authorization: Bearer <token>
 ## Payment webhook
 
 ```http
-POST /payments/webhook
+POST /api/payments/webhook
 ```
 
 ```json
@@ -691,7 +684,7 @@ POST /payments/webhook
 ## Generate
 
 ```http
-POST /ai/generate
+POST /api/ai/generate
 ```
 
 This route is public and uses the named `ai` limiter. The limit is `AI_RATE_LIMIT_PER_MINUTE` per authenticated user ID or IP address, defaulting to 60 per minute. No other API routes in `routes/api.php` have a named throttle.
@@ -754,12 +747,12 @@ With `async=true`, a queue job is dispatched and the endpoint returns HTTP 202 i
 }
 ```
 
-The job ID is the integer primary key of `ai_requests`, not a UUID. The status URL uses the API-domain root form when `API_DOMAIN` is set; otherwise it uses the `/api` form.
+The job ID is the integer primary key of `ai_requests`, not a UUID. The status URL always uses the `/api` form, including when `API_DOMAIN` is set.
 
 ## AI job status
 
 ```http
-GET /ai/jobs/{id}/status
+GET /api/ai/jobs/{id}/status
 ```
 
 This endpoint is public and does not check ownership. A missing row returns HTTP 404 with `Job not found`. A matching row returns the normal success envelope, message `AI job status`, and:
@@ -783,7 +776,7 @@ This endpoint is public and does not check ownership. A missing row returns HTTP
 ## Contact form
 
 ```http
-POST /mail/contact
+POST /api/mail/contact
 ```
 
 ```json
@@ -803,7 +796,7 @@ The recipient is read from the `mail_to_address` database setting, falling back 
 ## Newsletter signup
 
 ```http
-POST /mail/newsletter
+POST /api/mail/newsletter
 ```
 
 ```json
@@ -822,7 +815,7 @@ If the email already exists, no new email is sent and the endpoint returns HTTP 
 ## Verify newsletter subscription
 
 ```http
-GET /mail/newsletter/verify/{token}
+GET /api/mail/newsletter/verify/{token}
 ```
 
 An invalid token returns HTTP 404. A valid token sets `verified_at`, clears the verification token, and sends the welcome email. JSON requests receive HTTP 200 with message `Subscription verified successfully` and `data: null`. Browser requests redirect to `FRONTEND_URL/newsletter/verified` when `FRONTEND_URL` is configured. A verified subscriber is normally unreachable because the token is cleared; if encountered, the controller returns `Subscription already verified`.
@@ -830,7 +823,7 @@ An invalid token returns HTTP 404. A valid token sets `verified_at`, clears the 
 ## Unsubscribe
 
 ```http
-GET /mail/newsletter/unsubscribe/{token}
+GET /api/mail/newsletter/unsubscribe/{token}
 ```
 
 An invalid token returns HTTP 404. A valid token permanently deletes the subscriber row. JSON requests receive HTTP 200 with message `Successfully unsubscribed from newsletter` and `data.email`. Browser requests redirect to `FRONTEND_URL/newsletter/unsubscribed` when configured.
@@ -838,23 +831,23 @@ An invalid token returns HTTP 404. A valid token permanently deletes the subscri
 ## Mail password-reset endpoint
 
 ```http
-POST /mail/password-reset
+POST /api/mail/password-reset
 ```
 
 ```json
 { "email": "john@example.com" }
 ```
 
-This is a separate implementation from `/auth/password/forgot`. It lowercases and trims the email, returns a generic HTTP 200 response for both known and unknown addresses, sends `PasswordResetMail` for known users, and stores a hashed token in `password_reset_tokens`.
+This is a separate implementation from `/api/auth/password/forgot`. It lowercases and trims the email, returns a generic HTTP 200 response for both known and unknown addresses, sends `PasswordResetMail` for known users, and stores a hashed token in `password_reset_tokens`.
 
-**Flow limitation:** `/auth/password/reset` compares the submitted token directly with the database value, while this endpoint stores a hash. Therefore tokens generated by `/mail/password-reset` are not compatible with the current `/auth/password/reset` validation path. Use `/auth/password/forgot` for the reset flow consumed by `/auth/password/reset`.
+**Flow limitation:** `/api/auth/password/reset` compares the submitted token directly with the database value, while this endpoint stores a hash. Therefore tokens generated by `/api/mail/password-reset` are not compatible with the current `/api/auth/password/reset` validation path. Use `/api/auth/password/forgot` for the reset flow consumed by `/api/auth/password/reset`.
 
 # Maps
 
 ## Generate map URLs
 
 ```http
-POST /maps/pin
+POST /api/maps/pin
 ```
 
 ```json
@@ -875,7 +868,7 @@ No database or Google API call is made. Success is HTTP 200 with message `Map UR
 ## Verify token
 
 ```http
-POST /captcha/verify
+POST /api/captcha/verify
 ```
 
 Turnstile request:
@@ -906,8 +899,7 @@ The service calls the configured external verification endpoint. Success is HTTP
 | Setting | Used by |
 |---|---|
 | `APP_URL` | Generated backend URLs when no API domain is configured |
-| `API_DOMAIN` | Domain-root routing and generated status/email callback URLs |
-| `API_PREFIX_FALLBACK` | Additional `/api` routes when an API domain is configured |
+| `API_DOMAIN` | Optional deployment host or CORS origin; it does not change API paths |
 | `FRONTEND_URL` | OAuth completion, email verification, newsletter, logout, and password-reset links |
 | `SANCTUM_COOKIE_TTL` | Cookie-related deployment configuration; personal access tokens are not expired by these controllers |
 | `GORQ_API_KEY` / database Gorq settings | AI provider calls |
@@ -928,7 +920,7 @@ The service calls the configured external verification endpoint. Success is HTTP
 - The sandbox gateway accepts any webhook signature and is not a production payment integration.
 - API plan creation, update, and deletion are public routes in the current code.
 - AI job status is public and does not enforce ownership.
-- No generic 60/minute or 10/minute throttles are registered for the routes described as standard/throttled in older documentation. Only `/ai/generate` has the named throttle shown above.
+- No generic 60/minute or 10/minute throttles are registered for the routes described as standard/throttled in older documentation. Only `/api/ai/generate` has the named throttle shown above.
 
 # Web setup and admin routes
 

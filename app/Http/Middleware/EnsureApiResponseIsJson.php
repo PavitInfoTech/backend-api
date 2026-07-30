@@ -13,15 +13,8 @@ class EnsureApiResponseIsJson
     {
         $response = $next($request);
 
-        $apiDomain = env('API_DOMAIN');
-        $hostMatches = false;
-        if (! empty($apiDomain)) {
-            $parsed = preg_match('/^https?:\/\//', $apiDomain) ? parse_url($apiDomain, PHP_URL_HOST) : $apiDomain;
-            $hostMatches = $parsed === $request->getHost();
-        }
-
-        // Only operate on API paths or API subdomain
-        if (! $request->expectsJson() && ! $request->is('api/*') && ! $hostMatches) {
+        // Only operate on API paths. API_DOMAIN does not create a root-path API alias.
+        if (! $request->expectsJson() && ! $request->is('api/*')) {
             return $response;
         }
 

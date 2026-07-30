@@ -307,7 +307,6 @@ class SetupController extends Controller
         $envContent .= "MAIL_FROM_NAME=\"{$request->input('app_name')}\"\n\n";
 
         $envContent .= "# API Settings\n";
-        $envContent .= "API_PREFIX_FALLBACK=true\n";
         $envContent .= "APP_INSTALLED=false\n";
 
         if (File::put(base_path('.env'), $envContent) === false) {

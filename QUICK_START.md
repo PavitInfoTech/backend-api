@@ -139,7 +139,7 @@ DB_PASSWORD=your_password
 MAIL_MAILER=log
 MAIL_FROM_ADDRESS=noreply@example.com
 
-API_PREFIX_FALLBACK=true
+API_DOMAIN=api.example.com # optional deployment host; /api remains required
 ```
 
 ## Troubleshooting

@@ -17,9 +17,9 @@
                     }
                 ],
                 "url": {
-                    "raw": "{{baseUrl}}/ping",
+                    "raw": "{{baseUrl}}/api/ping",
                     "host": ["{{baseUrl}}"],
-                    "path": ["ping"]
+                    "path": ["api", "ping"]
                 }
             },
             "response": []
@@ -36,9 +36,9 @@
                     "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"{{testUserEmail}}\",\n  \"password\": \"{{testUserPassword}}\",\n  \"password_confirmation\": \"{{testUserPassword}}\"\n}"
                 },
                 "url": {
-                    "raw": "{{baseUrl}}/auth/register",
+                    "raw": "{{baseUrl}}/api/auth/register",
                     "host": ["{{baseUrl}}"],
-                    "path": ["auth", "register"]
+                    "path": ["api", "auth", "register"]
                 }
             },
             "event": [
@@ -67,9 +67,9 @@
                 ],
                 "body": { "mode": "raw", "raw": "{}" },
                 "url": {
-                    "raw": "{{baseUrl}}/auth/register",
+                    "raw": "{{baseUrl}}/api/auth/register",
                     "host": ["{{baseUrl}}"],
-                    "path": ["auth", "register"]
+                    "path": ["api", "auth", "register"]
                 }
             },
             "response": []
@@ -86,9 +86,9 @@
                     "raw": "{\n  \"email\": \"{{testUserEmail}}\",\n  \"password\": \"{{testUserPassword}}\"\n}"
                 },
                 "url": {
-                    "raw": "{{baseUrl}}/auth/login",
+                    "raw": "{{baseUrl}}/api/auth/login",
                     "host": ["{{baseUrl}}"],
-                    "path": ["auth", "login"]
+                    "path": ["api", "auth", "login"]
                 }
             },
             "event": [
@@ -112,9 +112,9 @@
                     { "key": "Authorization", "value": "Bearer {{apiToken}}" }
                 ],
                 "url": {
-                    "raw": "{{baseUrl}}/auth/logout",
+                    "raw": "{{baseUrl}}/api/auth/logout",
                     "host": ["{{baseUrl}}"],
-                    "path": ["auth", "logout"]
+                    "path": ["api", "auth", "logout"]
                 }
             },
             "response": []
@@ -131,9 +131,9 @@
                     "raw": "{ \"email\": \"{{testUserEmail}}\" }"
                 },
                 "url": {
-                    "raw": "{{baseUrl}}/auth/verify/send",
+                    "raw": "{{baseUrl}}/api/auth/verify/send",
                     "host": ["{{baseUrl}}"],
-                    "path": ["auth", "verify", "send"]
+                    "path": ["api", "auth", "verify", "send"]
                 }
             },
             "response": []
@@ -143,9 +143,9 @@
             "request": {
                 "method": "GET",
                 "url": {
-                    "raw": "{{baseUrl}}/auth/verify/{{verificationToken}}",
+                    "raw": "{{baseUrl}}/api/auth/verify/{{verificationToken}}",
                     "host": ["{{baseUrl}}"],
-                    "path": ["auth", "verify", "{{verificationToken}}"]
+                    "path": ["api", "auth", "verify", "{{verificationToken}}"]
                 },
                 "header": [{ "key": "Accept", "value": "application/json" }]
             },
@@ -163,9 +163,9 @@
                     "raw": "{ \"email\": \"{{testUserEmail}}\" }"
                 },
                 "url": {
-                    "raw": "{{baseUrl}}/auth/password/forgot",
+                    "raw": "{{baseUrl}}/api/auth/password/forgot",
                     "host": ["{{baseUrl}}"],
-                    "path": ["auth", "password", "forgot"]
+                    "path": ["api", "auth", "password", "forgot"]
                 }
             },
             "response": []
@@ -182,9 +182,9 @@
                     "raw": "{\n  \"email\": \"{{testUserEmail}}\",\n  \"token\": \"{{resetToken}}\",\n  \"password\": \"newPassword123\",\n  \"password_confirmation\": \"newPassword123\"\n}"
                 },
                 "url": {
-                    "raw": "{{baseUrl}}/auth/password/reset",
+                    "raw": "{{baseUrl}}/api/auth/password/reset",
                     "host": ["{{baseUrl}}"],
-                    "path": ["auth", "password", "reset"]
+                    "path": ["api", "auth", "password", "reset"]
                 }
             },
             "response": []
@@ -197,9 +197,9 @@
                     { "key": "Authorization", "value": "Bearer {{apiToken}}" }
                 ],
                 "url": {
-                    "raw": "{{baseUrl}}/user",
+                    "raw": "{{baseUrl}}/api/user",
                     "host": ["{{baseUrl}}"],
-                    "path": ["user"]
+                    "path": ["api", "user"]
                 }
             },
             "response": []
@@ -217,9 +217,9 @@
                     "raw": "{ \"name\": \"Updated User\", \"email\": \"{{testUserEmail}}\" }"
                 },
                 "url": {
-                    "raw": "{{baseUrl}}/user",
+                    "raw": "{{baseUrl}}/api/user",
                     "host": ["{{baseUrl}}"],
-                    "path": ["user"]
+                    "path": ["api", "user"]
                 }
             },
             "response": []
@@ -236,9 +236,9 @@
                     "formdata": [{ "key": "avatar", "type": "file", "src": "" }]
                 },
                 "url": {
-                    "raw": "{{baseUrl}}/user/avatar",
+                    "raw": "{{baseUrl}}/api/user/avatar",
                     "host": ["{{baseUrl}}"],
-                    "path": ["user", "avatar"]
+                    "path": ["api", "user", "avatar"]
                 }
             },
             "response": []
@@ -248,9 +248,9 @@
             "request": {
                 "method": "GET",
                 "url": {
-                    "raw": "{{baseUrl}}/users/{{userId}}/public",
+                    "raw": "{{baseUrl}}/api/users/{{userId}}/public",
                     "host": ["{{baseUrl}}"],
-                    "path": ["users", "{{userId}}", "public"]
+                    "path": ["api", "users", "{{userId}}", "public"]
                 }
             },
             "response": []
@@ -267,9 +267,9 @@
                     "raw": "{ \"name\": \"Contact Name\", \"email\": \"someone@example.com\", \"message\": \"Hello\" }"
                 },
                 "url": {
-                    "raw": "{{baseUrl}}/mail/contact",
+                    "raw": "{{baseUrl}}/api/mail/contact",
                     "host": ["{{baseUrl}}"],
-                    "path": ["mail", "contact"]
+                    "path": ["api", "mail", "contact"]
                 }
             },
             "response": []
@@ -286,9 +286,9 @@
                     "raw": "{ \"email\": \"someone@example.com\" }"
                 },
                 "url": {
-                    "raw": "{{baseUrl}}/mail/newsletter",
+                    "raw": "{{baseUrl}}/api/mail/newsletter",
                     "host": ["{{baseUrl}}"],
-                    "path": ["mail", "newsletter"]
+                    "path": ["api", "mail", "newsletter"]
                 }
             },
             "response": []
@@ -305,9 +305,9 @@
                     "raw": "{ \"email\": \"someone@example.com\" }"
                 },
                 "url": {
-                    "raw": "{{baseUrl}}/mail/password-reset",
+                    "raw": "{{baseUrl}}/api/mail/password-reset",
                     "host": ["{{baseUrl}}"],
-                    "path": ["mail", "password-reset"]
+                    "path": ["api", "mail", "password-reset"]
                 }
             },
             "response": []
@@ -325,9 +325,9 @@
                     "raw": "{ \"prompt\": \"Give me a short summary of the repo\", \"async\": false }"
                 },
                 "url": {
-                    "raw": "{{baseUrl}}/ai/generate",
+                    "raw": "{{baseUrl}}/api/ai/generate",
                     "host": ["{{baseUrl}}"],
-                    "path": ["ai", "generate"]
+                    "path": ["api", "ai", "generate"]
                 }
             },
             "response": []
@@ -345,9 +345,9 @@
                     "raw": "{ \"prompt\": \"Do some async work\", \"async\": true }"
                 },
                 "url": {
-                    "raw": "{{baseUrl}}/ai/generate",
+                    "raw": "{{baseUrl}}/api/ai/generate",
                     "host": ["{{baseUrl}}"],
-                    "path": ["ai", "generate"]
+                    "path": ["api", "ai", "generate"]
                 }
             },
             "response": []
@@ -360,9 +360,9 @@
                     { "key": "Authorization", "value": "Bearer {{apiToken}}" }
                 ],
                 "url": {
-                    "raw": "{{baseUrl}}/ai/jobs/{{jobId}}/status",
+                    "raw": "{{baseUrl}}/api/ai/jobs/{{jobId}}/status",
                     "host": ["{{baseUrl}}"],
-                    "path": ["ai", "jobs", "{{jobId}}", "status"]
+                    "path": ["api", "ai", "jobs", "{{jobId}}", "status"]
                 }
             },
             "response": []
@@ -380,9 +380,9 @@
                     "raw": "{ \"lat\": 37.7749, \"lng\": -122.4194, \"label\": \"Home\" }"
                 },
                 "url": {
-                    "raw": "{{baseUrl}}/maps/pin",
+                    "raw": "{{baseUrl}}/api/maps/pin",
                     "host": ["{{baseUrl}}"],
-                    "path": ["maps", "pin"]
+                    "path": ["api", "maps", "pin"]
                 }
             },
             "response": []
@@ -392,9 +392,9 @@
             "request": {
                 "method": "GET",
                 "url": {
-                    "raw": "{{baseUrl}}/auth/google/redirect",
+                    "raw": "{{baseUrl}}/api/auth/google/redirect",
                     "host": ["{{baseUrl}}"],
-                    "path": ["auth", "google", "redirect"]
+                    "path": ["api", "auth", "google", "redirect"]
                 }
             },
             "response": []
