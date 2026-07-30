@@ -31,6 +31,10 @@
             </thead>
             <tbody class="divide-y divide-gray-200">
                 @forelse ($plans as $plan)
+                    @php
+                        $displayMonthlyPrice = $plan->monthly_price ?? ($plan->interval === 'monthly' ? $plan->price : null);
+                        $displayYearlyPrice = $plan->yearly_price ?? ($plan->interval === 'yearly' ? $plan->price : null);
+                    @endphp
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-3">
                             <div>
@@ -39,10 +43,10 @@
                             </div>
                         </td>
                         <td class="px-4 py-3 font-medium text-gray-900">
-                            {{ $plan->monthly_price !== null ? ($plan->currency . ' ' . number_format($plan->monthly_price, 2)) : '-' }}
+                            {{ $displayMonthlyPrice !== null ? ($plan->currency . ' ' . number_format($displayMonthlyPrice, 2)) : '-' }}
                         </td>
                         <td class="px-4 py-3 font-medium text-gray-900">
-                            {{ $plan->yearly_price !== null ? ($plan->currency . ' ' . number_format($plan->yearly_price, 2)) : '-' }}
+                            {{ $displayYearlyPrice !== null ? ($plan->currency . ' ' . number_format($displayYearlyPrice, 2)) : '-' }}
                         </td>
                         <td class="px-4 py-3">
                             <span class="inline-flex px-2 py-1 rounded-full text-xs font-semibold
@@ -60,7 +64,7 @@
                             {{ $plan->created_at->format('M d, Y') }}
                         </td>
                         <td class="px-4 py-3 text-right">
-                            <button type="button" onclick="editPlan({{ $plan->id }}, '{{ addslashes($plan->name) }}', '{{ $plan->slug }}', '{{ addslashes($plan->description) }}', {{ $plan->monthly_price ?? 'null' }}, {{ $plan->yearly_price ?? 'null' }}, '{{ $plan->currency }}', {{ $plan->trial_days }}, {{ $plan->is_active ? 'true' : 'false' }}, {{ $plan->popular ? 'true' : 'false' }}, {{ json_encode($plan->features) }})" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit</button>
+                            <button type="button" onclick="editPlan({{ $plan->id }}, '{{ addslashes($plan->name) }}', '{{ $plan->slug }}', '{{ addslashes($plan->description) }}', {{ $displayMonthlyPrice ?? 'null' }}, {{ $displayYearlyPrice ?? 'null' }}, '{{ $plan->currency }}', {{ $plan->trial_days }}, {{ $plan->is_active ? 'true' : 'false' }}, {{ $plan->popular ? 'true' : 'false' }}, {{ json_encode($plan->features) }})" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit</button>
                             <form action="{{ route('settings.delete-subscription-plan', $plan->id) }}" method="POST" class="inline">
                                 @csrf
                                 @method('DELETE')
@@ -105,14 +109,15 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label for="monthly_price" class="block text-sm font-medium text-gray-700 mb-2">Monthly Price</label>
-                    <input type="number" id="monthly_price" name="monthly_price" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" placeholder="Optional">
+                    <input type="number" id="monthly_price" name="monthly_price" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" placeholder="e.g. 49.00">
                 </div>
 
                 <div>
                     <label for="yearly_price" class="block text-sm font-medium text-gray-700 mb-2">Yearly Price</label>
-                    <input type="number" id="yearly_price" name="yearly_price" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" placeholder="Optional">
+                    <input type="number" id="yearly_price" name="yearly_price" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" placeholder="e.g. 399.00">
                 </div>
             </div>
+            <p class="text-gray-500 text-xs -mt-2">Enter at least one price. The legacy API price is derived automatically from the monthly price, or the yearly price when monthly pricing is not provided.</p>
 
             <div>
                 <label for="currency" class="block text-sm font-medium text-gray-700 mb-2">Currency</label>
@@ -178,14 +183,15 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label for="edit_monthly_price" class="block text-sm font-medium text-gray-700 mb-2">Monthly Price</label>
-                    <input type="number" id="edit_monthly_price" name="monthly_price" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" placeholder="Optional">
+                    <input type="number" id="edit_monthly_price" name="monthly_price" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" placeholder="e.g. 49.00">
                 </div>
 
                 <div>
                     <label for="edit_yearly_price" class="block text-sm font-medium text-gray-700 mb-2">Yearly Price</label>
-                    <input type="number" id="edit_yearly_price" name="yearly_price" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" placeholder="Optional">
+                    <input type="number" id="edit_yearly_price" name="yearly_price" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500" placeholder="e.g. 399.00">
                 </div>
             </div>
+            <p class="text-gray-500 text-xs -mt-2">Enter at least one price. The legacy API price is kept in sync automatically.</p>
 
             <div>
                 <label for="edit_currency" class="block text-sm font-medium text-gray-700 mb-2">Currency</label>
@@ -228,10 +234,10 @@
         document.getElementById('edit_name').value = name;
         document.getElementById('edit_slug').value = slug;
         document.getElementById('edit_description').value = description || '';
-        document.getElementById('edit_monthly_price').value = monthlyPrice || '';
-        document.getElementById('edit_yearly_price').value = yearlyPrice || '';
+        document.getElementById('edit_monthly_price').value = monthlyPrice ?? '';
+        document.getElementById('edit_yearly_price').value = yearlyPrice ?? '';
         document.getElementById('edit_currency').value = currency;
-        document.getElementById('edit_trial_days').value = trialDays || '';
+        document.getElementById('edit_trial_days').value = trialDays ?? '';
         document.getElementById('edit_is_active').checked = isActive;
         document.getElementById('edit_popular').checked = popular;
 

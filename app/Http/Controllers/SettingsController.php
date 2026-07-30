@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AppSettings;
 use App\Models\AdminCredential;
+use App\Models\Payment;
 use App\Models\SubscriptionPlan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -548,12 +549,13 @@ class SettingsController extends Controller
             'name' => 'required|string|max:255',
             'slug' => 'required|string|max:255|unique:subscription_plans,slug',
             'description' => 'nullable|string',
-            'monthly_price' => 'nullable|numeric|min:0',
-            'yearly_price' => 'nullable|numeric|min:0',
+            'monthly_price' => 'nullable|numeric|min:0|required_without:yearly_price',
+            'yearly_price' => 'nullable|numeric|min:0|required_without:monthly_price',
             'currency' => 'required|string|size:3',
             'trial_days' => 'nullable|integer|min:0',
             'features' => 'nullable|string',
             'is_active' => 'required|boolean',
+            'popular' => 'required|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -569,16 +571,18 @@ class SettingsController extends Controller
                 });
             }
 
+            $pricing = $this->resolvePlanPricing($request);
+
             SubscriptionPlan::create([
                 'name' => $request->input('name'),
                 'slug' => $request->input('slug'),
                 'description' => $request->input('description'),
-                'monthly_price' => $request->input('monthly_price'),
-                'yearly_price' => $request->input('yearly_price'),
+                ...$pricing,
                 'currency' => strtoupper($request->input('currency')),
                 'trial_days' => (int)($request->input('trial_days') ?? 0),
                 'features' => $features,
                 'is_active' => (bool)$request->input('is_active', 0),
+                'popular' => (bool)$request->input('popular', 0),
             ]);
 
             session()->flash('success', 'Subscription plan created successfully!');
@@ -597,12 +601,13 @@ class SettingsController extends Controller
             'name' => 'required|string|max:255',
             'slug' => 'required|string|max:255|unique:subscription_plans,slug,' . $plan->id,
             'description' => 'nullable|string',
-            'monthly_price' => 'nullable|numeric|min:0',
-            'yearly_price' => 'nullable|numeric|min:0',
+            'monthly_price' => 'nullable|numeric|min:0|required_without:yearly_price',
+            'yearly_price' => 'nullable|numeric|min:0|required_without:monthly_price',
             'currency' => 'required|string|size:3',
             'trial_days' => 'nullable|integer|min:0',
             'features' => 'nullable|string',
             'is_active' => 'required|boolean',
+            'popular' => 'required|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -618,16 +623,18 @@ class SettingsController extends Controller
                 });
             }
 
+            $pricing = $this->resolvePlanPricing($request);
+
             $plan->update([
                 'name' => $request->input('name'),
                 'slug' => $request->input('slug'),
                 'description' => $request->input('description'),
-                'monthly_price' => $request->input('monthly_price'),
-                'yearly_price' => $request->input('yearly_price'),
+                ...$pricing,
                 'currency' => strtoupper($request->input('currency')),
                 'trial_days' => (int)($request->input('trial_days') ?? 0),
                 'features' => $features,
                 'is_active' => (bool)$request->input('is_active', 0),
+                'popular' => (bool)$request->input('popular', 0),
             ]);
 
             session()->flash('success', 'Subscription plan updated successfully!');
@@ -643,8 +650,11 @@ class SettingsController extends Controller
     public function deleteSubscriptionPlan(SubscriptionPlan $plan)
     {
         try {
-            // Check if plan has active subscriptions
-            if ($plan->payments()->where('status', 'active')->exists()) {
+            // Payments store the selected plan by slug; there is no
+            // subscription_plan_id relationship in the current schema.
+            if (Payment::where('plan_name', $plan->slug)
+                ->whereIn('status', ['pending', 'completed'])
+                ->exists()) {
                 return back()->with('error', 'Cannot delete plan with active subscriptions. Please deactivate the plan instead.');
             }
 
@@ -654,7 +664,33 @@ class SettingsController extends Controller
             session()->flash('error', 'Failed to delete subscription plan: ' . $e->getMessage());
         }
 
-        return redirect()->route('subscription-plans');
+        return redirect()->route('settings.subscription-plans');
+    }
+
+    /**
+     * Keep the legacy required pricing columns synchronized with the current
+     * monthly/yearly pricing fields used by the admin UI.
+     */
+    private function resolvePlanPricing(Request $request): array
+    {
+        $monthlyPrice = $request->input('monthly_price');
+        $yearlyPrice = $request->input('yearly_price');
+
+        $hasMonthlyPrice = $monthlyPrice !== null && $monthlyPrice !== '';
+        $hasYearlyPrice = $yearlyPrice !== null && $yearlyPrice !== '';
+
+        if (! $hasMonthlyPrice && ! $hasYearlyPrice) {
+            throw new \InvalidArgumentException('Provide a monthly or yearly price.');
+        }
+
+        return [
+            // The legacy API price represents the monthly price when one is
+            // available, otherwise it falls back to the yearly price.
+            'price' => $hasMonthlyPrice ? $monthlyPrice : $yearlyPrice,
+            'monthly_price' => $hasMonthlyPrice ? $monthlyPrice : null,
+            'yearly_price' => $hasYearlyPrice ? $yearlyPrice : null,
+            'interval' => $hasMonthlyPrice ? 'monthly' : 'yearly',
+        ];
     }
 
     /**
