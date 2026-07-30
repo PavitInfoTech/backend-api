@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Schema;
 
 class AppSettings extends Model
 {
@@ -68,7 +69,17 @@ class AppSettings extends Model
 
     public static function getSetting(string $key, $default = null)
     {
-        $setting = static::where('key', $key)->first();
+        try {
+            // Settings are read by some public endpoints during the initial
+            // install, before all migrations have necessarily completed.
+            if (! Schema::hasTable((new static)->getTable())) {
+                return $default;
+            }
+
+            $setting = static::where('key', $key)->first();
+        } catch (\Throwable $e) {
+            return $default;
+        }
 
         if (!$setting) {
             return $default;

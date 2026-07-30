@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\DatabaseSetupCheck;
+use App\Http\Controllers\Concerns\InstallationState;
 use App\Models\AdminCredential;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -11,14 +12,14 @@ use Illuminate\Support\Facades\Validator;
 class AdminAuthController extends Controller
 {
     use DatabaseSetupCheck;
+    use InstallationState;
     /**
      * Show login form
      */
     public function showLogin()
     {
         // If the application is not yet installed, redirect to setup
-        $installed = env('APP_INSTALLED');
-        if (!$installed || $installed === 'false') {
+        if (! $this->isApplicationInstalled()) {
             return redirect()->route('setup.index');
         }
 
@@ -39,8 +40,7 @@ class AdminAuthController extends Controller
     public function login(Request $request)
     {
         // Prevent DB access when app isn't installed yet
-        $installed = env('APP_INSTALLED');
-        if (!$installed || $installed === 'false') {
+        if (! $this->isApplicationInstalled()) {
             return redirect()->route('setup.index');
         }
 

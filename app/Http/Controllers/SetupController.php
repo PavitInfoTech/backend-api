@@ -3,27 +3,28 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\DatabaseSetupCheck;
+use App\Http\Controllers\Concerns\InstallationState;
 use App\Models\AppSettings;
 use App\Models\AdminCredential;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\File;
 
 class SetupController extends Controller
 {
     use DatabaseSetupCheck;
+    use InstallationState;
 
     /**
      * Show setup page or redirect if already installed
      */
     public function index()
     {
-        $envExists = $this->isEnvExists();
-        $appInstalled = env('APP_INSTALLED');
-
-        if (! $envExists || ! $appInstalled || $appInstalled === 'false') {
+        if (! $this->isApplicationInstalled()) {
             return view('setup.index');
         }
 
@@ -47,10 +48,6 @@ class SetupController extends Controller
      */
     public function dbCheck()
     {
-        if (! $this->isEnvExists()) {
-            return redirect()->route('setup.index');
-        }
-
         if ($this->isDatabaseReady()) {
             return redirect()->route('setup.index')->with('success', 'Database tables already exist.');
         }
@@ -68,8 +65,7 @@ class SetupController extends Controller
         }
 
         try {
-            Artisan::call('config:clear');
-            $this->safeClearCache();
+            $this->clearInstallerCaches();
 
             $this->refreshDatabaseConnection();
             Artisan::call('migrate', ['--force' => true]);
@@ -79,7 +75,8 @@ class SetupController extends Controller
             }
 
             return redirect()->route('setup.db-check')->with('error', 'Migrations finished but some tables are still missing. Please check your DB connection and credentials.');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            report($e);
             return redirect()->route('setup.db-check')->with('error', 'Migration failed: ' . $e->getMessage());
         }
     }
@@ -99,7 +96,7 @@ class SetupController extends Controller
             'db_port' => 'required|integer',
             'db_database' => 'required|string',
             'db_username' => 'required|string',
-            'db_password' => 'required|string',
+            'db_password' => 'nullable|string',
             'admin_username' => 'required|string',
             'admin_password' => 'required|string|min:8|confirmed',
         ]);
@@ -113,8 +110,9 @@ class SetupController extends Controller
             $this->createEnvFile($request);
 
             // Reload config and DB connection using supplied credentials so migrate uses this new DB.
-            Artisan::call('config:clear');
-            $this->safeClearCache();
+            // Remove stale cached configuration before using the submitted
+            // database and session settings.
+            $this->clearInstallerCaches();
             $this->refreshDatabaseConnection([
                 'driver' => 'mysql',
                 'host' => $request->input('db_host'),
@@ -133,32 +131,41 @@ class SetupController extends Controller
             // Run migrations in the newly configured database
             Artisan::call('migrate', ['--force' => true]);
 
-            // Create admin credential
-            AdminCredential::create([
-                'username' => $request->input('admin_username'),
-                'password' => Hash::make($request->input('admin_password')),
-                'role' => 'super_admin',
-                'permissions' => ['*'],
-                'activated_at' => now(),
-                'is_active' => true,
-            ]);
+            DB::transaction(function () use ($request): void {
+                // A previous attempt may have created the admin before a later
+                // step failed. Reuse it instead of creating a duplicate.
+                $admin = AdminCredential::query()->first();
 
-            // Store initial settings
-            AppSettings::setSetting('app_installed', true, [
-                'category' => 'general',
-                'description' => 'Application installed flag',
-            ]);
+                if (! $admin) {
+                    $admin = AdminCredential::create([
+                        'username' => $request->input('admin_username'),
+                        'password' => Hash::make($request->input('admin_password')),
+                        'role' => 'super_admin',
+                        'permissions' => ['*'],
+                        'activated_at' => now(),
+                        'is_active' => true,
+                    ]);
+                }
 
-            // Persist APP_INSTALLED=true to .env so restarts honour installed state
-            try {
-                $this->setEnvValue('APP_INSTALLED', 'true');
-            } catch (\Throwable $e) {
-                // ignore non-fatal
-            }
+                if (! $admin->is_active) {
+                    throw new \RuntimeException('An admin credential already exists but is inactive. Activate it before completing setup.');
+                }
+
+                $this->markApplicationInstalled();
+            });
+
+            // The database state is committed before attempting the optional
+            // .env persistence step.
+            $this->persistInstalledEnvironment();
+
+            // Clear caches again after APP_INSTALLED and the final environment
+            // values are persisted, before the redirect starts a new request.
+            $this->clearInstallerCaches();
 
             session()->flash('success', 'Setup completed successfully! You can now login.');
             return redirect()->route('admin.login');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            report($e);
             return back()->with('error', 'Setup failed: ' . $e->getMessage());
         }
     }
@@ -168,8 +175,21 @@ class SetupController extends Controller
      */
     public function storeAdminSetup(Request $request)
     {
+        try {
+            if (AdminCredential::query()->exists()) {
+                $this->markApplicationInstalled();
+                $this->persistInstalledEnvironment();
+                $this->clearInstallerCaches();
+
+                return redirect()->route('admin.login')->with('success', 'An admin account already exists. You can now login.');
+            }
+        } catch (\Throwable $e) {
+            report($e);
+            return back()->with('error', 'Unable to check existing admin credentials: ' . $e->getMessage());
+        }
+
         $validator = Validator::make($request->all(), [
-            'username' => 'required|string|unique:admin_credentials,username',
+            'username' => 'required|string',
             'password' => 'required|string|min:8|confirmed',
         ]);
 
@@ -178,31 +198,77 @@ class SetupController extends Controller
         }
 
         try {
-            AdminCredential::create([
-                'username' => $request->input('username'),
-                'password' => Hash::make($request->input('password')),
-                'role' => 'super_admin',
-                'permissions' => ['*'],
-                'activated_at' => now(),
-                'is_active' => true,
-            ]);
+            DB::transaction(function () use ($request): void {
+                if (AdminCredential::query()->exists()) {
+                    $this->markApplicationInstalled();
+                    return;
+                }
 
-            AppSettings::setSetting('app_installed', true, [
-                'category' => 'general',
-                'description' => 'Application installed flag',
-            ]);
+                AdminCredential::create([
+                    'username' => $request->input('username'),
+                    'password' => Hash::make($request->input('password')),
+                    'role' => 'super_admin',
+                    'permissions' => ['*'],
+                    'activated_at' => now(),
+                    'is_active' => true,
+                ]);
 
-            // Persist APP_INSTALLED=true to .env so restarts honour installed state
-            try {
-                $this->setEnvValue('APP_INSTALLED', 'true');
-            } catch (\Throwable $e) {
-                // ignore
-            }
+                $this->markApplicationInstalled();
+            });
+
+            $this->persistInstalledEnvironment();
+            $this->clearInstallerCaches();
 
             session()->flash('success', 'Admin account created successfully! You can now login.');
             return redirect()->route('admin.login');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            report($e);
             return back()->with('error', 'Failed to create admin account: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Persist the installation state in the database.
+     */
+    private function markApplicationInstalled(): void
+    {
+        AppSettings::setSetting('app_installed', true, [
+            'category' => 'general',
+            'description' => 'Application installed flag',
+        ]);
+    }
+
+    /**
+     * Keep APP_INSTALLED in .env in sync when the deployment filesystem allows
+     * it. The database flag remains authoritative when this is not possible.
+     */
+    private function persistInstalledEnvironment(): void
+    {
+        try {
+            if (! $this->setEnvValue('APP_INSTALLED', 'true')) {
+                Log::warning('Unable to persist APP_INSTALLED=true to the environment file; database installation state remains authoritative.');
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Unable to persist APP_INSTALLED=true to the environment file.', [
+                'exception' => $e,
+            ]);
+        }
+    }
+
+    /**
+     * Clear all Laravel caches that can preserve pre-install configuration.
+     */
+    private function clearInstallerCaches(): void
+    {
+        foreach (['config:clear', 'cache:clear', 'route:clear', 'view:clear'] as $command) {
+            try {
+                Artisan::call($command);
+            } catch (\Throwable $e) {
+                Log::warning('Installer cache cleanup command failed.', [
+                    'command' => $command,
+                    'exception' => $e,
+                ]);
+            }
         }
     }
 
@@ -244,7 +310,9 @@ class SetupController extends Controller
         $envContent .= "API_PREFIX_FALLBACK=true\n";
         $envContent .= "APP_INSTALLED=false\n";
 
-        File::put(base_path('.env'), $envContent);
+        if (File::put(base_path('.env'), $envContent) === false) {
+            throw new \RuntimeException('Unable to write the environment file. Check that the application directory is writable.');
+        }
     }
 
     /**
@@ -266,13 +334,12 @@ class SetupController extends Controller
     /**
      * Set or replace a value in the .env file. Creates .env if missing.
      */
-    private function setEnvValue(string $key, string $value)
+    private function setEnvValue(string $key, string $value): bool
     {
         $path = base_path('.env');
         $line = $key . '=' . $value;
         if (!File::exists($path)) {
-            File::put($path, $line . PHP_EOL);
-            return;
+            return File::put($path, $line . PHP_EOL) !== false;
         }
 
         $contents = File::get($path);
@@ -282,6 +349,6 @@ class SetupController extends Controller
             $contents .= PHP_EOL . $line . PHP_EOL;
         }
 
-        File::put($path, $contents);
+        return File::put($path, $contents) !== false;
     }
 }

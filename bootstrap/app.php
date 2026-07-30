@@ -61,6 +61,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up'
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // The setup wizard must use file sessions until migrations create the
+        // database sessions table. This middleware runs before StartSession.
+        $middleware->prepend(\App\Http\Middleware\EnsureSetupSessionDriver::class);
+
         // Use custom Authenticate middleware that returns JSON 401 instead of redirecting
         $middleware->alias([
             'auth' => \App\Http\Middleware\Authenticate::class,

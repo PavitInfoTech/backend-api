@@ -26,8 +26,10 @@ class MailController extends ApiController
         ];
 
         if (config('services.turnstile.enabled') || config('services.recaptcha.enabled')) {
-            $rules['turnstile_token'] = ['sometimes', 'string', new \App\Rules\CaptchaRequired('contact')];
-            $rules['recaptcha_token'] = ['sometimes', 'string'];
+            // At least one provider token is required. Attach the rule to both
+            // fields so either Turnstile or reCAPTCHA can satisfy the request.
+            $rules['turnstile_token'] = ['required_without:recaptcha_token', 'nullable', 'string', new \App\Rules\CaptchaRequired('contact')];
+            $rules['recaptcha_token'] = ['required_without:turnstile_token', 'nullable', 'string', new \App\Rules\CaptchaRequired('contact')];
         } else {
             $rules['turnstile_token'] = ['sometimes', 'string'];
             $rules['recaptcha_token'] = ['sometimes', 'string'];
@@ -69,8 +71,8 @@ class MailController extends ApiController
         ];
 
         if (config('services.turnstile.enabled') || config('services.recaptcha.enabled')) {
-            $rules['turnstile_token'] = ['sometimes', 'string', new \App\Rules\CaptchaRequired('newsletter')];
-            $rules['recaptcha_token'] = ['sometimes', 'string'];
+            $rules['turnstile_token'] = ['required_without:recaptcha_token', 'nullable', 'string', new \App\Rules\CaptchaRequired('newsletter')];
+            $rules['recaptcha_token'] = ['required_without:turnstile_token', 'nullable', 'string', new \App\Rules\CaptchaRequired('newsletter')];
         } else {
             $rules['turnstile_token'] = ['sometimes', 'string'];
             $rules['recaptcha_token'] = ['sometimes', 'string'];
