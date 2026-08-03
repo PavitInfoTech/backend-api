@@ -98,13 +98,13 @@ class MailController extends ApiController
             'unsubscribe_token' => Str::random(64),
         ]);
 
-        // Send verification email to user immediately
-        Mail::to($email)->send(new NewsletterVerificationMail($subscriber));
+        // Send the thank-you/verification email immediately to the subscriber.
+        Mail::to($email)->sendNow(new NewsletterVerificationMail($subscriber));
 
         // Notify admin
         $adminInbox = config('mail.from.address', env('MAIL_FROM_ADDRESS'));
         if (! empty($adminInbox)) {
-            Mail::to($adminInbox)->send(new AdminNewsletterNotificationMail($email));
+            Mail::to($adminInbox)->sendNow(new AdminNewsletterNotificationMail($email));
         }
 
         return $this->success(['subscriber_id' => $subscriber->id], 'Newsletter signup processed. Please check your email to verify.');
@@ -131,7 +131,8 @@ class MailController extends ApiController
         ]);
 
         // Send the welcome email now that they're verified
-        Mail::to($subscriber->email)->send(new NewsletterSignupMail($subscriber));
+        // Send the final confirmation immediately after the subscription is verified.
+        Mail::to($subscriber->email)->sendNow(new NewsletterSignupMail($subscriber));
 
         // Redirect to frontend if set and request is not JSON, otherwise return JSON
         $frontend = config('app.frontend_url', env('FRONTEND_URL'));

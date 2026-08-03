@@ -808,7 +808,7 @@ POST /api/mail/newsletter
 }
 ```
 
-Email is required and valid. Name is optional, max 255. The email is lowercased and trimmed. A new subscriber row is created with verification and unsubscribe tokens. A verification email and an admin notification email are sent immediately. Success is HTTP 200 with `data.subscriber_id` and message `Newsletter signup processed. Please check your email to verify.`
+Email is required and valid. Name is optional, max 255. The email is lowercased and trimmed. A new subscriber row is created with verification and unsubscribe tokens. A thank-you/verification email is sent synchronously to the exact subscriber address, and an admin notification email is sent immediately. The subscription becomes active only after the verification link is used. Success is HTTP 200 with `data.subscriber_id` and message `Newsletter signup processed. Please check your email to verify.`
 
 If the email already exists, no new email is sent and the endpoint returns HTTP 200 with `data: null` and message `Email already subscribed`.
 
@@ -818,7 +818,7 @@ If the email already exists, no new email is sent and the endpoint returns HTTP 
 GET /api/mail/newsletter/verify/{token}
 ```
 
-An invalid token returns HTTP 404. A valid token sets `verified_at`, clears the verification token, and sends the welcome email. JSON requests receive HTTP 200 with message `Subscription verified successfully` and `data: null`. Browser requests redirect to `FRONTEND_URL/newsletter/verified` when `FRONTEND_URL` is configured. A verified subscriber is normally unreachable because the token is cleared; if encountered, the controller returns `Subscription already verified`.
+An invalid token returns HTTP 404. A valid token sets `verified_at`, clears the verification token, and sends a final email confirming that the subscriber is successfully subscribed. JSON requests receive HTTP 200 with message `Subscription verified successfully` and `data: null`. Browser requests redirect to `FRONTEND_URL/newsletter/verified` when `FRONTEND_URL` is configured. A verified subscriber is normally unreachable because the token is cleared; if encountered, the controller returns `Subscription already verified`.
 
 ## Unsubscribe
 

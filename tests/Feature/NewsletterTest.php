@@ -36,7 +36,9 @@ class NewsletterTest extends TestCase
         $this->assertNull($subscriber->verified_at);
 
         // Verification mail sent, not welcome mail yet
-        Mail::assertSent(NewsletterVerificationMail::class);
+        Mail::assertSent(NewsletterVerificationMail::class, function (NewsletterVerificationMail $mail) use ($email): bool {
+            return $mail->hasTo($email);
+        });
         Mail::assertNotSent(NewsletterSignupMail::class);
         Mail::assertSent(AdminNewsletterNotificationMail::class);
     }
@@ -61,7 +63,9 @@ class NewsletterTest extends TestCase
         $this->assertNull($subscriber->verification_token);
 
         // Welcome mail now sent
-        Mail::assertSent(NewsletterSignupMail::class);
+        Mail::assertSent(NewsletterSignupMail::class, function (NewsletterSignupMail $mail): bool {
+            return $mail->hasTo('verify@example.com');
+        });
     }
 
     public function test_newsletter_verify_invalid_token_returns_404()
