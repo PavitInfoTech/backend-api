@@ -6,10 +6,12 @@ use App\Models\AppSettings;
 use App\Models\AdminCredential;
 use App\Models\Payment;
 use App\Models\SubscriptionPlan;
+use App\Mail\SettingsTestMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
@@ -148,21 +150,40 @@ class SettingsController extends Controller
      */
     public function testMailSettings(Request $request)
     {
+        $validator = Validator::make($request->all(), [
+            'test_email' => 'nullable|email',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->route('settings.mail')
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        $validated = $validator->validated();
+
         try {
-            $toAddress = AppSettings::getSetting('mail_to_address')
+            // Reload the database-backed values for this request so the test never
+            // depends on stale cached mail configuration.
+            $mailDriver = $this->applyStoredMailConfiguration();
+
+            if ($mailDriver === 'log') {
+                return redirect()->route('settings.mail')->with('error', 'The Log driver does not send real emails. Select SMTP or another delivery driver and save the settings first.');
+            }
+
+            $toAddress = ($validated['test_email'] ?? null)
+                ?: AppSettings::getSetting('mail_to_address')
                 ?: config('mail.from.address', env('MAIL_FROM_ADDRESS'));
-            
-            if (!$toAddress) {
-                return back()->with('error', 'Please configure a "From Address" or "To Address (Contact Form)" before testing.');
+
+            if (! $toAddress) {
+                return redirect()->route('settings.mail')->with('error', 'Enter a test recipient email or configure a "To Address (Contact Form)" before testing.');
             }
 
             $fromAddress = AppSettings::getSetting('mail_from_address')
                 ?: config('mail.from.address', env('MAIL_FROM_ADDRESS'));
-            
+
             $fromName = AppSettings::getSetting('mail_from_name')
                 ?: config('mail.from.name', env('MAIL_FROM_NAME', 'Backend API'));
-
-            $mailDriver = config('mail.default');
 
             \Log::info('[TestMail] Attempting to send test email', [
                 'driver' => $mailDriver,
@@ -170,22 +191,56 @@ class SettingsController extends Controller
                 'from' => $fromAddress,
             ]);
 
-            // Send a simple test email
-            Mail::raw(
-                'This is a test email from your Backend API to verify SMTP configuration is working correctly.',
-                function ($msg) use ($toAddress, $fromAddress, $fromName) {
-                    $msg->to($toAddress)
-                        ->from($fromAddress, $fromName)
-                        ->subject('[Test] Backend API - SMTP Configuration Test');
-                }
-            );
+            // Send synchronously so this button verifies the configured transport now.
+            Mail::mailer($mailDriver)
+                ->to($toAddress)
+                ->sendNow(new SettingsTestMail($fromAddress, $fromName));
 
             \Log::info('[TestMail] Test email sent successfully');
-            return back()->with('success', 'Test email sent successfully to ' . $toAddress . '! Check your mailbox (including spam folder).');
-        } catch (\Exception $e) {
+            return redirect()->route('settings.mail')->with('success', 'Test email was accepted by the ' . $mailDriver . ' mail transport for ' . $toAddress . '. Check the mailbox and spam folder.');
+        } catch (\Throwable $e) {
             \Log::error('[TestMail] Failed to send test email', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-            return back()->with('error', 'Failed to send test email: ' . $e->getMessage());
+            return redirect()->route('settings.mail')->with('error', 'Failed to send test email: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Apply the saved mail settings immediately for the current request.
+     */
+    private function applyStoredMailConfiguration(): string
+    {
+        $mailDriver = AppSettings::getSetting('mail_mailer') ?: config('mail.default', 'log');
+        config(['mail.default' => $mailDriver]);
+
+        $fromAddress = AppSettings::getSetting('mail_from_address');
+        $fromName = AppSettings::getSetting('mail_from_name');
+        if ($fromAddress || $fromName) {
+            config(['mail.from' => array_filter([
+                'address' => $fromAddress ?: config('mail.from.address'),
+                'name' => $fromName ?: config('mail.from.name'),
+            ])]);
+        }
+
+        if ($mailDriver === 'smtp') {
+            $smtp = config('mail.mailers.smtp', []);
+            $smtpSettings = [
+                'host' => AppSettings::getSetting('mail_host'),
+                'port' => AppSettings::getSetting('mail_port'),
+                'username' => AppSettings::getSetting('mail_username'),
+                'password' => AppSettings::getSetting('mail_password'),
+                'encryption' => AppSettings::getSetting('mail_encryption'),
+            ];
+
+            foreach ($smtpSettings as $key => $value) {
+                if ($value !== null && $value !== '') {
+                    $smtp[$key] = $key === 'port' ? (int) $value : $value;
+                }
+            }
+
+            config(['mail.mailers.smtp' => $smtp]);
+        }
+
+        return (string) $mailDriver;
     }
 
     /**

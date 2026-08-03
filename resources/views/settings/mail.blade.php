@@ -117,13 +117,23 @@
             </div>
         </div>
 
-        <div class="flex justify-between items-center mt-8">
-            <form action="{{ route('settings.test-mail') }}" method="POST" class="inline">
-                @csrf
-                <button type="submit" class="bg-blue-600 text-white py-2 px-6 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Send Test Email</button>
-            </form>
+        <div class="flex justify-end items-center mt-8">
             <button type="submit" class="bg-purple-600 text-white py-2 px-6 rounded-md hover:bg-purple-700 transition duration-200 font-medium">Save Changes</button>
         </div>
     </form>
+
+    <div class="mt-6 border-t p-6 bg-blue-50">
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Test Mail Configuration</h2>
+        <p class="text-gray-600 text-sm mb-4">Save your mail settings first, then send a real test email through the selected mail transport.</p>
+        <form action="{{ route('settings.test-mail') }}" method="POST" class="flex flex-col sm:flex-row sm:items-end gap-4">
+            @csrf
+            <div class="flex-1">
+                <label for="test_email" class="block text-sm font-medium text-gray-700 mb-2">Test Recipient</label>
+                <input type="email" id="test_email" name="test_email" value="{{ old('test_email', $mailSettings->where('key', 'mail_to_address')->first()?->getValue()) }}" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="you@example.com">
+                <p class="text-gray-500 text-xs mt-1">If blank, the saved contact-form recipient or from address is used.</p>
+            </div>
+            <button type="submit" class="bg-blue-600 text-white py-2 px-6 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Send Test Email</button>
+        </form>
+    </div>
 </div>
 @endsection
