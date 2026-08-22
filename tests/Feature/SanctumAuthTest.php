@@ -65,4 +65,58 @@ class SanctumAuthTest extends TestCase
 
         $response->assertStatus(200)->assertJson(['status' => 'success', 'message' => 'User profile']);
     }
+
+    public function test_register_with_plan_details_returns_plan_in_response()
+    {
+        Mail::fake();
+
+        $passwordHash = hash('sha256', 'password');
+        $payload = [
+            'username' => 'planuser',
+            'first_name' => 'Plan',
+            'last_name' => 'User',
+            'email' => 'planuser@example.com',
+            'password_hash' => $passwordHash,
+            'password_hash_confirmation' => $passwordHash,
+            'plan_slug' => 'pro-tier',
+            'billing_cycle' => 'yearly',
+        ];
+
+        $response = $this->postJson('/api/auth/register', $payload);
+
+        $response->assertStatus(201)
+            ->assertJson([
+                'status' => 'success',
+                'data' => [
+                    'plan_slug' => 'pro-tier',
+                    'plan' => 'pro-tier',
+                    'plan_interval' => 'yearly',
+                    'interval' => 'yearly',
+                ],
+            ]);
+    }
+
+    public function test_login_with_plan_details_returns_plan_in_response()
+    {
+        $passwordHash = hash('sha256', 'secret');
+        $user = User::factory()->create(['password' => $passwordHash]);
+
+        $response = $this->postJson('/api/auth/login', [
+            'email' => $user->email,
+            'password_hash' => $passwordHash,
+            'plan' => 'enterprise',
+            'interval' => 'monthly',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'status' => 'success',
+                'data' => [
+                    'plan_slug' => 'enterprise',
+                    'plan' => 'enterprise',
+                    'plan_interval' => 'monthly',
+                    'interval' => 'monthly',
+                ],
+            ]);
+    }
 }

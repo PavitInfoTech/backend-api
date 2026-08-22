@@ -28,6 +28,13 @@ class AuthController extends ApiController
             'email' => 'required|email|unique:users,email',
             'password_hash' => 'required|string|size:64', // SHA-256 hash (64 hex chars)
             'password_hash_confirmation' => 'required|string|same:password_hash',
+            'plan' => 'sometimes|nullable|string|max:255',
+            'plan_slug' => 'sometimes|nullable|string|max:255',
+            'slug' => 'sometimes|nullable|string|max:255',
+            'interval' => 'sometimes|nullable|string|max:50',
+            'period' => 'sometimes|nullable|string|max:50',
+            'billing_cycle' => 'sometimes|nullable|string|max:50',
+            'plan_interval' => 'sometimes|nullable|string|max:50',
         ];
 
         if (config('services.turnstile.enabled') || config('services.recaptcha.enabled')) {
@@ -58,7 +65,18 @@ class AuthController extends ApiController
         // Automatically send email verification
         $this->sendVerificationEmail($user);
 
-        return $this->success(['user' => $user, 'token' => $token], 'Registered. Please check your email to verify your account.', 201);
+        $planDetails = $this->extractPlanDetails($request);
+        $responseData = ['user' => $user, 'token' => $token];
+        if ($planDetails['plan_slug']) {
+            $responseData['plan_slug'] = $planDetails['plan_slug'];
+            $responseData['plan'] = $planDetails['plan_slug'];
+        }
+        if ($planDetails['interval']) {
+            $responseData['plan_interval'] = $planDetails['interval'];
+            $responseData['interval'] = $planDetails['interval'];
+        }
+
+        return $this->success($responseData, 'Registered. Please check your email to verify your account.', 201);
     }
 
     public function login(Request $request)
@@ -66,6 +84,13 @@ class AuthController extends ApiController
         $v = Validator::make($request->all(), [
             'email' => 'required|email',
             'password_hash' => 'required|string|size:64', // SHA-256 hash (64 hex chars)
+            'plan' => 'sometimes|nullable|string|max:255',
+            'plan_slug' => 'sometimes|nullable|string|max:255',
+            'slug' => 'sometimes|nullable|string|max:255',
+            'interval' => 'sometimes|nullable|string|max:50',
+            'period' => 'sometimes|nullable|string|max:50',
+            'billing_cycle' => 'sometimes|nullable|string|max:50',
+            'plan_interval' => 'sometimes|nullable|string|max:50',
         ]);
 
         if ($v->fails()) {
@@ -81,7 +106,18 @@ class AuthController extends ApiController
         // Create a Sanctum personal access token for the user
         $token = $user->createToken('api-token')->plainTextToken;
 
-        return $this->success(['user' => $user, 'token' => $token], 'Logged in');
+        $planDetails = $this->extractPlanDetails($request);
+        $responseData = ['user' => $user, 'token' => $token];
+        if ($planDetails['plan_slug']) {
+            $responseData['plan_slug'] = $planDetails['plan_slug'];
+            $responseData['plan'] = $planDetails['plan_slug'];
+        }
+        if ($planDetails['interval']) {
+            $responseData['plan_interval'] = $planDetails['interval'];
+            $responseData['interval'] = $planDetails['interval'];
+        }
+
+        return $this->success($responseData, 'Logged in');
     }
 
     public function logout(Request $request)
@@ -125,6 +161,11 @@ class AuthController extends ApiController
 
     public function redirectToGoogle(Request $request)
     {
+        $planDetails = $this->extractPlanDetails($request);
+        if ($planDetails['plan_slug'] || $planDetails['interval']) {
+            $request->session()->put('oauth_plan', $planDetails);
+        }
+
         // Use Socialite to redirect user to Google for OAuth consent.
         try {
             return Socialite::driver('google')->redirect();
@@ -166,6 +207,11 @@ class AuthController extends ApiController
 
     public function redirectToGithub(Request $request)
     {
+        $planDetails = $this->extractPlanDetails($request);
+        if ($planDetails['plan_slug'] || $planDetails['interval']) {
+            $request->session()->put('oauth_plan', $planDetails);
+        }
+
         try {
             return Socialite::driver('github')->redirect();
         } catch (\Exception $e) {
@@ -214,7 +260,12 @@ class AuthController extends ApiController
         $profile = $this->buildProfileFromSocialiteUser($social, 'github');
         $user = $this->findOrCreateSocialUser('github', $profile);
 
-        return $this->respondAfterSocialLogin($request, $user, 'github');
+        $sessionPlan = $request->session()->pull('oauth_plan', []);
+        $requestPlan = $this->extractPlanDetails($request);
+        $planSlug = $sessionPlan['plan_slug'] ?? $requestPlan['plan_slug'] ?? null;
+        $planInterval = $sessionPlan['interval'] ?? $requestPlan['interval'] ?? null;
+
+        return $this->respondAfterSocialLogin($request, $user, 'github', false, $planSlug, $planInterval);
     }
 
     public function unlinkProvider(Request $request)
@@ -248,7 +299,12 @@ class AuthController extends ApiController
         $profile = $this->buildProfileFromSocialiteUser($social, 'google');
         $user = $this->findOrCreateSocialUser('google', $profile);
 
-        return $this->respondAfterSocialLogin($request, $user, 'google');
+        $sessionPlan = $request->session()->pull('oauth_plan', []);
+        $requestPlan = $this->extractPlanDetails($request);
+        $planSlug = $sessionPlan['plan_slug'] ?? $requestPlan['plan_slug'] ?? null;
+        $planInterval = $sessionPlan['interval'] ?? $requestPlan['interval'] ?? null;
+
+        return $this->respondAfterSocialLogin($request, $user, 'google', false, $planSlug, $planInterval);
     }
 
     public function googleTokenLogin(Request $request)
@@ -257,6 +313,13 @@ class AuthController extends ApiController
             'code' => 'required_without:credential|string',
             'credential' => 'required_without:code|string',
             'redirect_uri' => 'sometimes|url',
+            'plan' => 'sometimes|nullable|string|max:255',
+            'plan_slug' => 'sometimes|nullable|string|max:255',
+            'slug' => 'sometimes|nullable|string|max:255',
+            'interval' => 'sometimes|nullable|string|max:50',
+            'period' => 'sometimes|nullable|string|max:50',
+            'billing_cycle' => 'sometimes|nullable|string|max:50',
+            'plan_interval' => 'sometimes|nullable|string|max:50',
         ]);
 
         try {
@@ -275,7 +338,8 @@ class AuthController extends ApiController
             }
 
             $user = $this->findOrCreateSocialUser('google', $profile);
-            return $this->respondAfterSocialLogin($request, $user, 'google', true);
+            $planDetails = $this->extractPlanDetails($request);
+            return $this->respondAfterSocialLogin($request, $user, 'google', true, $planDetails['plan_slug'], $planDetails['interval']);
         } catch (\Throwable $e) {
             return $this->error('Google authentication failed', 400, ['error' => $e->getMessage()]);
         }
@@ -287,6 +351,13 @@ class AuthController extends ApiController
             'code' => 'required_without:access_token|string',
             'access_token' => 'required_without:code|string',
             'redirect_uri' => 'sometimes|url',
+            'plan' => 'sometimes|nullable|string|max:255',
+            'plan_slug' => 'sometimes|nullable|string|max:255',
+            'slug' => 'sometimes|nullable|string|max:255',
+            'interval' => 'sometimes|nullable|string|max:50',
+            'period' => 'sometimes|nullable|string|max:50',
+            'billing_cycle' => 'sometimes|nullable|string|max:50',
+            'plan_interval' => 'sometimes|nullable|string|max:50',
         ]);
 
         try {
@@ -306,7 +377,8 @@ class AuthController extends ApiController
             $profile = $this->buildProfileFromSocialiteUser($social, 'github');
             $user = $this->findOrCreateSocialUser('github', $profile);
 
-            return $this->respondAfterSocialLogin($request, $user, 'github', true);
+            $planDetails = $this->extractPlanDetails($request);
+            return $this->respondAfterSocialLogin($request, $user, 'github', true, $planDetails['plan_slug'], $planDetails['interval']);
         } catch (\Throwable $e) {
             return $this->error('GitHub authentication failed', 400, ['error' => $e->getMessage()]);
         }
@@ -572,30 +644,96 @@ class AuthController extends ApiController
         return $user;
     }
 
-    protected function respondAfterSocialLogin(Request $request, User $user, string $provider, bool $forceJson = false)
-    {
+    protected function respondAfterSocialLogin(
+        Request $request,
+        User $user,
+        string $provider,
+        bool $forceJson = false,
+        ?string $planSlug = null,
+        ?string $planInterval = null
+    ) {
         $token = $user->createToken($provider)->plainTextToken;
         $message = 'Authenticated via ' . ucfirst($provider);
 
         if ($forceJson || $this->expectsJsonResponse($request)) {
-            return $this->success(['user' => $user, 'token' => $token], $message);
+            $responseData = [
+                'user' => $user,
+                'token' => $token,
+            ];
+            if ($planSlug) {
+                $responseData['plan_slug'] = $planSlug;
+                $responseData['plan'] = $planSlug;
+            }
+            if ($planInterval) {
+                $responseData['plan_interval'] = $planInterval;
+                $responseData['interval'] = $planInterval;
+            }
+            return $this->success($responseData, $message);
         }
 
-        return $this->cookieRedirectResponse($token);
+        return $this->cookieRedirectResponse($token, $planSlug, $planInterval);
     }
 
-    protected function cookieRedirectResponse(string $token)
-    {
+    protected function cookieRedirectResponse(
+        string $token,
+        ?string $planSlug = null,
+        ?string $planInterval = null
+    ) {
         $frontend = rtrim(config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:3000')), '/');
 
-        // Pass token via query parameter for the frontend to extract
-        // This is safe because:
-        // 1. It's a one-time redirect to the same-origin frontend
-        // 2. The frontend immediately extracts and stores the token
-        // 3. History is replaced to remove token from browser history
-        $redirectTo = $frontend . '/auth/complete?token=' . urlencode($token);
+        $params = [
+            'token' => $token,
+        ];
+
+        if ($planSlug) {
+            $params['plan'] = $planSlug;
+            $params['plan_slug'] = $planSlug;
+        }
+
+        if ($planInterval) {
+            $params['interval'] = $planInterval;
+            $params['plan_interval'] = $planInterval;
+        }
+
+        $redirectTo = $frontend . '/auth/complete?' . http_build_query($params);
 
         return redirect($redirectTo);
+    }
+
+    /**
+     * Extract and normalize subscription plan details from request input or query parameters.
+     */
+    protected function extractPlanDetails(Request $request): array
+    {
+        $slug = $request->input('plan_slug')
+            ?? $request->input('plan')
+            ?? $request->input('slug')
+            ?? $request->query('plan_slug')
+            ?? $request->query('plan')
+            ?? $request->query('slug');
+
+        $interval = $request->input('interval')
+            ?? $request->input('plan_interval')
+            ?? $request->input('billing_cycle')
+            ?? $request->input('period')
+            ?? $request->query('interval')
+            ?? $request->query('plan_interval')
+            ?? $request->query('billing_cycle')
+            ?? $request->query('period');
+
+        if (is_string($interval)) {
+            $normalized = strtolower(trim($interval));
+            if (in_array($normalized, ['yearly', 'year', 'annual', 'annually'], true)) {
+                $interval = 'yearly';
+            } elseif (in_array($normalized, ['monthly', 'month'], true)) {
+                $interval = 'monthly';
+            }
+        }
+
+        return [
+            'plan_slug' => is_string($slug) && trim($slug) !== '' ? trim($slug) : null,
+            'interval' => is_string($interval) && trim($interval) !== '' ? trim($interval) : null,
+        ];
     }
 
     protected function expectsJsonResponse(Request $request): bool

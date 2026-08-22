@@ -93,4 +93,86 @@ class GithubOAuthTest extends TestCase
 
         $this->assertDatabaseHas('users', ['email' => 'browser@example.com', 'provider_id' => 'github-333']);
     }
+
+    public function test_redirect_stores_plan_details_in_session()
+    {
+        $response = $this->get('/api/auth/github/redirect?plan=business&interval=annual');
+
+        $response->assertStatus(302);
+        $response->assertSessionHas('oauth_plan', [
+            'plan_slug' => 'business',
+            'interval' => 'yearly',
+        ]);
+    }
+
+    public function test_callback_passes_plan_details_in_query_and_redirects_for_browser()
+    {
+        config(['app.frontend_url' => 'http://frontend.test']);
+
+        $social = Mockery::mock(SocialiteUserContract::class);
+        $social->shouldReceive('getId')->andReturn('github-444');
+        $social->shouldReceive('getName')->andReturn('Github Plan User');
+        $social->shouldReceive('getEmail')->andReturn('ghplan@example.com');
+        $social->shouldReceive('getAvatar')->andReturn(null);
+        $social->shouldReceive('getNickname')->andReturn('ghplan');
+        $social->user = ['given_name' => 'Github', 'family_name' => 'Plan'];
+
+        $provider = Mockery::mock('Laravel\Socialite\Contracts\Provider');
+        $provider->shouldReceive('user')->andReturn($social);
+
+        Socialite::shouldReceive('driver')->with('github')->andReturn($provider);
+
+        $response = $this->withSession([
+            'oauth_plan' => [
+                'plan_slug' => 'starter-gh',
+                'interval' => 'monthly',
+            ],
+        ])->get('/api/auth/github/callback', ['Accept' => 'text/html']);
+
+        $response->assertStatus(302);
+
+        $redirectUrl = $response->headers->get('Location');
+        $parsedUrl = parse_url($redirectUrl);
+        parse_str($parsedUrl['query'] ?? '', $queryParams);
+
+        $this->assertArrayHasKey('token', $queryParams);
+        $this->assertEquals('starter-gh', $queryParams['plan'] ?? null);
+        $this->assertEquals('starter-gh', $queryParams['plan_slug'] ?? null);
+        $this->assertEquals('monthly', $queryParams['interval'] ?? null);
+        $this->assertEquals('monthly', $queryParams['plan_interval'] ?? null);
+    }
+
+    public function test_callback_with_plan_details_returns_json()
+    {
+        $social = Mockery::mock(SocialiteUserContract::class);
+        $social->shouldReceive('getId')->andReturn('github-555');
+        $social->shouldReceive('getName')->andReturn('JSON GH Plan User');
+        $social->shouldReceive('getEmail')->andReturn('jsongh@example.com');
+        $social->shouldReceive('getAvatar')->andReturn(null);
+        $social->shouldReceive('getNickname')->andReturn('jsongh');
+        $social->user = ['given_name' => 'JSON', 'family_name' => 'GH'];
+
+        $provider = Mockery::mock('Laravel\Socialite\Contracts\Provider');
+        $provider->shouldReceive('user')->andReturn($social);
+
+        Socialite::shouldReceive('driver')->with('github')->andReturn($provider);
+
+        $response = $this->withSession([
+            'oauth_plan' => [
+                'plan_slug' => 'team-plan',
+                'interval' => 'yearly',
+            ],
+        ])->getJson('/api/auth/github/callback');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'status' => 'success',
+                'data' => [
+                    'plan_slug' => 'team-plan',
+                    'plan' => 'team-plan',
+                    'plan_interval' => 'yearly',
+                    'interval' => 'yearly',
+                ],
+            ]);
+    }
 }

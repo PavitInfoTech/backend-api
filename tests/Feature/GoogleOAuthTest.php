@@ -93,4 +93,86 @@ class GoogleOAuthTest extends TestCase
 
         $this->assertDatabaseHas('users', ['email' => 'browser@example.com', 'provider_id' => 'google-333']);
     }
+
+    public function test_redirect_stores_plan_details_in_session()
+    {
+        $response = $this->get('/api/auth/google/redirect?plan_slug=pro-plus&billing_cycle=yearly');
+
+        $response->assertStatus(302);
+        $response->assertSessionHas('oauth_plan', [
+            'plan_slug' => 'pro-plus',
+            'interval' => 'yearly',
+        ]);
+    }
+
+    public function test_callback_passes_plan_details_in_query_and_redirects_for_browser()
+    {
+        config(['app.frontend_url' => 'http://frontend.test']);
+
+        $social = Mockery::mock(SocialiteUserContract::class);
+        $social->shouldReceive('getId')->andReturn('google-444');
+        $social->shouldReceive('getName')->andReturn('Plan Browser User');
+        $social->shouldReceive('getEmail')->andReturn('planbrowser@example.com');
+        $social->shouldReceive('getAvatar')->andReturn(null);
+        $social->shouldReceive('getNickname')->andReturn('planbrowser');
+        $social->user = ['given_name' => 'Plan', 'family_name' => 'Browser'];
+
+        $provider = Mockery::mock('Laravel\Socialite\Contracts\Provider');
+        $provider->shouldReceive('user')->andReturn($social);
+
+        Socialite::shouldReceive('driver')->with('google')->andReturn($provider);
+
+        $response = $this->withSession([
+            'oauth_plan' => [
+                'plan_slug' => 'starter-plan',
+                'interval' => 'monthly',
+            ],
+        ])->get('/api/auth/google/callback', ['Accept' => 'text/html']);
+
+        $response->assertStatus(302);
+
+        $redirectUrl = $response->headers->get('Location');
+        $parsedUrl = parse_url($redirectUrl);
+        parse_str($parsedUrl['query'] ?? '', $queryParams);
+
+        $this->assertArrayHasKey('token', $queryParams);
+        $this->assertEquals('starter-plan', $queryParams['plan'] ?? null);
+        $this->assertEquals('starter-plan', $queryParams['plan_slug'] ?? null);
+        $this->assertEquals('monthly', $queryParams['interval'] ?? null);
+        $this->assertEquals('monthly', $queryParams['plan_interval'] ?? null);
+    }
+
+    public function test_callback_with_plan_details_returns_json()
+    {
+        $social = Mockery::mock(SocialiteUserContract::class);
+        $social->shouldReceive('getId')->andReturn('google-555');
+        $social->shouldReceive('getName')->andReturn('JSON Plan User');
+        $social->shouldReceive('getEmail')->andReturn('jsonplan@example.com');
+        $social->shouldReceive('getAvatar')->andReturn(null);
+        $social->shouldReceive('getNickname')->andReturn('jsonplan');
+        $social->user = ['given_name' => 'JSON', 'family_name' => 'Plan'];
+
+        $provider = Mockery::mock('Laravel\Socialite\Contracts\Provider');
+        $provider->shouldReceive('user')->andReturn($social);
+
+        Socialite::shouldReceive('driver')->with('google')->andReturn($provider);
+
+        $response = $this->withSession([
+            'oauth_plan' => [
+                'plan_slug' => 'enterprise-plan',
+                'interval' => 'yearly',
+            ],
+        ])->getJson('/api/auth/google/callback');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'status' => 'success',
+                'data' => [
+                    'plan_slug' => 'enterprise-plan',
+                    'plan' => 'enterprise-plan',
+                    'plan_interval' => 'yearly',
+                    'interval' => 'yearly',
+                ],
+            ]);
+    }
 }

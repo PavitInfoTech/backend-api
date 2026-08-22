@@ -162,6 +162,8 @@ Request JSON:
   "email": "john@example.com",
   "password_hash": "<exactly 64 characters>",
   "password_hash_confirmation": "<same value>",
+  "plan_slug": "optional string (or plan, slug)",
+  "billing_cycle": "optional string (or interval, period, plan_interval - 'monthly'|'yearly')",
   "turnstile_token": "optional",
   "recaptcha_token": "optional"
 }
@@ -173,13 +175,15 @@ Validation:
 - `first_name` and `last_name`: nullable strings, max 255;
 - `email`: required, valid email, unique in `users.email`;
 - `password_hash`: required string of length 64;
-- `password_hash_confirmation`: required and must match `password_hash`.
+- `password_hash_confirmation`: required and must match `password_hash`;
+- `plan_slug` / `plan` / `slug`: optional string up to 255 chars;
+- `billing_cycle` / `interval` / `period` / `plan_interval`: optional string up to 50 chars.
 
 The API expects the client to send the SHA-256 representation as `password_hash`. The backend stores that value directly; it does not hash it again. The implementation does not enforce hexadecimal characters, only length.
 
 If Turnstile or reCAPTCHA is enabled, CAPTCHA-related rules are added to the request. The token fields are currently declared `sometimes`; clients should send the valid token in `turnstile_token` or `recaptcha_token` whenever CAPTCHA protection is enabled.
 
-Success: HTTP 201, message `Registered. Please check your email to verify your account.`. `data` contains `user` and a new Sanctum `token`. The user is created, a token is created, and the verification email is sent synchronously through the configured mailer.
+Success: HTTP 201, message `Registered. Please check your email to verify your account.`. `data` contains `user`, a new Sanctum `token`, and optional `plan`, `plan_slug`, `interval`, and `plan_interval` when plan details were supplied. The user is created, a token is created, and the verification email is sent synchronously through the configured mailer.
 
 ## Login
 
@@ -190,11 +194,13 @@ POST /api/auth/login
 ```json
 {
   "email": "john@example.com",
-  "password_hash": "<exactly 64 characters>"
+  "password_hash": "<exactly 64 characters>",
+  "plan_slug": "optional string (or plan, slug)",
+  "billing_cycle": "optional string (or interval, period, plan_interval - 'monthly'|'yearly')"
 }
 ```
 
-Success: HTTP 200, message `Logged in`, with `data.user` and `data.token`. Credentials are compared to the stored string with `hash_equals`. Email verification is not required by this endpoint. Each successful login creates another token; previous tokens remain valid until revoked.
+Success: HTTP 200, message `Logged in`, with `data.user`, `data.token`, and optional `plan`, `plan_slug`, `interval`, and `plan_interval` when plan details were supplied. Credentials are compared to the stored string with `hash_equals`. Email verification is not required by this endpoint. Each successful login creates another token; previous tokens remain valid until revoked.
 
 Invalid credentials return HTTP 401 with message `Invalid credentials`. Validation failures return HTTP 422.
 
@@ -294,9 +300,11 @@ Accepted request fields:
 
 - `code` required when `credential` is absent;
 - `credential` required when `code` is absent;
-- `redirect_uri` optional but, when present, must be a URL.
+- `redirect_uri` optional but, when present, must be a URL;
+- `plan_slug` / `plan` / `slug` optional string;
+- `billing_cycle` / `interval` / `period` / `plan_interval` optional string (`monthly`|`yearly`).
 
-The `code` path exchanges the authorization code server-side and obtains the Google user. The `credential` path validates a Google ID token through Google's token-info endpoint. Success is HTTP 200 with message `Authenticated via Google`, `data.user`, and `data.token`. Provider failures return HTTP 400 with `Google authentication failed`.
+The `code` path exchanges the authorization code server-side and obtains the Google user. The `credential` path validates a Google ID token through Google's token-info endpoint. Success is HTTP 200 with message `Authenticated via Google`, `data.user`, `data.token`, and optional `plan`, `plan_slug`, `interval`, `plan_interval`. Provider failures return HTTP 400 with `Google authentication failed`.
 
 ### GitHub
 
@@ -308,9 +316,11 @@ Accepted request fields:
 
 - `code` required when `access_token` is absent;
 - `access_token` required when `code` is absent;
-- `redirect_uri` optional but, when present, must be a URL.
+- `redirect_uri` optional but, when present, must be a URL;
+- `plan_slug` / `plan` / `slug` optional string;
+- `billing_cycle` / `interval` / `period` / `plan_interval` optional string (`monthly`|`yearly`).
 
-Success is HTTP 200 with message `Authenticated via Github`, `data.user`, and `data.token`. Provider failures return HTTP 400 with `GitHub authentication failed`.
+Success is HTTP 200 with message `Authenticated via Github`, `data.user`, `data.token`, and optional `plan`, `plan_slug`, `interval`, `plan_interval`. Provider failures return HTTP 400 with `GitHub authentication failed`.
 
 ## Browser OAuth redirect and callback
 
@@ -323,13 +333,15 @@ GET /api/auth/github/redirect
 GET /api/auth/github/callback
 ```
 
-The redirect route returns a 302 redirect to the provider. The callback exchanges the provider response and creates or finds a local user. If the request explicitly prefers JSON, the callback returns the same `data.user` and `data.token` envelope as the token exchange. Otherwise it redirects to:
+The redirect route accepts optional query parameters (`plan_slug`, `plan`, `slug` and `billing_cycle`, `interval`, `period`, `plan_interval`) and stores them in the session before returning a 302 redirect to the OAuth provider.
+
+The callback exchanges the provider response, creates or finds a local user, and retrieves any plan parameters from the session or query parameters. If the request explicitly prefers JSON, the callback returns the same `data.user`, `data.token`, `data.plan`, `data.plan_slug`, `data.interval`, and `data.plan_interval` envelope as the token exchange. Otherwise it redirects to:
 
 ```text
-FRONTEND_URL/auth/complete?token=<plain_sanctum_token>
+FRONTEND_URL/auth/complete?token=<plain_sanctum_token>&plan=<plan_slug>&plan_slug=<plan_slug>&interval=<interval>&plan_interval=<interval>
 ```
 
-Provider errors return HTTP 400 JSON. The current implementation places the plain API token in the redirect query string; consumers should treat this as a security-sensitive implementation detail.
+Provider errors return HTTP 400 JSON. The current implementation places the plain API token and optional plan parameters in the redirect query string; consumers should treat this as a security-sensitive implementation detail.
 
 ## Link and unlink OAuth providers
 
